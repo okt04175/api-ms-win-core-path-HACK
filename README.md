@@ -15,3 +15,4 @@ After that it should work.
 
 ## Reference
 [Windows 7 support for blender 2.93](https://blender.community/c/rightclickselect/XZgbbc/)
+[Original project this is based on](https://github.com/kobilutil/api-ms-win-core-path-HACK)

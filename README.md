@@ -1,4 +1,4 @@
-# api-ms-win-core-path-l1-1-0.dll HACK
+# api-ms-win-core-path-l1-1-0.dll
 This is a partial implementation of `api-ms-win-core-path-l1-1-0.dll` based on Wine code. It contains the functions required to run Blender 2.93 (specifically, Python 3.9) on Windows 7.
 
 ## Description
@@ -14,5 +14,6 @@ Blender 2.93 Alpha fails to start on Windows 7 because it uses Python 3.9 which 
 After that it should work.
 
 ## Reference
-[Windows 7 support for blender 2.93](https://blender.community/c/rightclickselect/XZgbbc/)
-[Original project this is based on](https://github.com/kobilutil/api-ms-win-core-path-HACK)
+* [Windows 7 support for blender 2.93](https://blender.community/c/rightclickselect/XZgbbc/)
+* [Wine source code](https://source.winehq.org/git/wine.git/blob_plain/HEAD:/dlls/kernelbase/path.c)
+* [Original project this is based on](https://github.com/kobilutil/api-ms-win-core-path-HACK)

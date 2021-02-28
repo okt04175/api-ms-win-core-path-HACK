@@ -5,7 +5,7 @@ This is a partial implementation of `api-ms-win-core-path-l1-1-0.dll` based on W
 
 Blender 2.93 Alpha fails to start on Windows 7 because it uses Python 3.9 which requires `api-ms-win-core-path-l1-1-0.dll`.
 
-`blender.exe` only imports `PathCchCanonicalizeEx` and `PathCchCombineEx`, so this should be sufficent for now.
+`blender.exe` only imports `PathCchCanonicalizeEx` and `PathCchCombineEx`, so this should be sufficent unless there will be other changes during the 2.93 development cycle to make it incompatible with Windows 7.
 
 ## Installation
 * Clone and build it yourself or download a statically precompiled [release].

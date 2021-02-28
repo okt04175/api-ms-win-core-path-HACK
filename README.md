@@ -7,6 +7,8 @@ Blender 2.93 Alpha fails to start on Windows 7 because it uses Python 3.9 which 
 
 `blender.exe` only imports `PathCchCanonicalizeEx` and `PathCchCombineEx`, so this should be sufficent unless there will be other changes during the 2.93 development cycle to make it incompatible with Windows 7.
 
+![Blender 2.93 Alpha on Windows 7](https://raw.githubusercontent.com/nalexandru/api-ms-win-core-path-HACK/master/293_win7.png)
+
 ## Installation
 * Clone and build it yourself or download a statically precompiled [release].
 * Copy the dll into Blender's installation directory.

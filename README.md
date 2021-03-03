@@ -1,5 +1,5 @@
 # api-ms-win-core-path-l1-1-0.dll
-This is a partial implementation of `api-ms-win-core-path-l1-1-0.dll` based on Wine code. It contains the functions required to run Blender 2.93 (specifically, Python 3.9) on Windows 7.
+This is an implementation of `api-ms-win-core-path-l1-1-0.dll` based on Wine code. It is made to run Blender 2.93 (specifically, Python 3.9) on Windows 7.
 
 ## Description
 
@@ -10,8 +10,8 @@ Blender 2.93 Alpha fails to start on Windows 7 because it uses Python 3.9 which 
 ![Blender 2.93 Alpha on Windows 7](https://raw.githubusercontent.com/nalexandru/api-ms-win-core-path-HACK/master/293_win7.png)
 
 ## Installation
-* Clone and build it yourself or download a statically precompiled [release].
-* Copy the dll into Blender's installation directory.
+* Clone and build it yourself or download a precompiled release.
+* Copy the x64 dll into Blender's installation directory or copy the x86 dll into C:\Windows\SysWOW64 and the x64 dll into C:\Windows\System32.
 
 After that it should work.
 

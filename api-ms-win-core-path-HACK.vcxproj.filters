@@ -15,15 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="api-ms-win-core-path-HACK.cpp">
+    <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dllmain.cpp">
+    <ClCompile Include="api-ms-win-core-path-blender.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Source.def">
+    <None Include="api-ms-win-core-path-blender.def">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>

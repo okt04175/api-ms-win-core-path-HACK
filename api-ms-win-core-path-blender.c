@@ -182,7 +182,7 @@ HRESULT PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_ou
 
 	/* path length + possible \\?\ addition + possible \ addition + NUL */
 	buffer_size = (length + 6) * sizeof(WCHAR);
-	buffer = (WCHAR *)LocalAlloc(LMEM_ZEROINIT, buffer_size);
+	buffer = LocalAlloc(LMEM_ZEROINIT, buffer_size);
 	if (!buffer)
 	{
 		*path_out = NULL;
@@ -364,7 +364,7 @@ HRESULT PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WC
 	/* path1 length + path2 length + possible backslash + NULL */
 	combined_length = lstrlenW(path1) + length2 + 2;
 
-	combined_path = (WCHAR *)HeapAlloc(GetProcessHeap(), 0, combined_length * sizeof(WCHAR));
+	combined_path = HeapAlloc(GetProcessHeap(), 0, combined_length * sizeof(WCHAR));
 	if (!combined_path)
 	{
 		*out = NULL;
@@ -484,7 +484,7 @@ HRESULT PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD fla
     /* Create a temporary buffer for result because we need to keep path1 unchanged if error occurs.
      * And PathCchCombineEx writes empty result if there is error so we can't just use path1 as output
      * buffer for PathCchCombineEx */
-    result = (WCHAR *)HeapAlloc(GetProcessHeap(), 0, size * sizeof(WCHAR));
+    result = HeapAlloc(GetProcessHeap(), 0, size * sizeof(WCHAR));
     if (!result) return E_OUTOFMEMORY;
 
     /* Avoid the single backslash behavior with PathCchCombineEx when appending */

@@ -39,6 +39,29 @@
 
 #define STRSAFE_E_INSUFFICIENT_BUFFER ((HRESULT)0x8007007AL)
 
+HRESULT PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out);
+HRESULT PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out);
+HRESULT PathCchAddBackslash(WCHAR *path, SIZE_T size);
+HRESULT PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining);
+HRESULT PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
+HRESULT PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2);
+HRESULT PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags);
+HRESULT PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in);
+HRESULT PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags);
+HRESULT PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2);
+HRESULT PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags);
+HRESULT PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension);
+BOOL PathCchIsRoot(const WCHAR *path);
+HRESULT PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size);
+HRESULT PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size);
+HRESULT PathCchRemoveExtension(WCHAR *path, SIZE_T size);
+HRESULT PathCchRemoveFileSpec(WCHAR *path, SIZE_T size);
+HRESULT PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
+HRESULT PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end);
+HRESULT PathCchStripPrefix(WCHAR *path, SIZE_T size);
+HRESULT PathCchStripToRoot(WCHAR *path, SIZE_T size);
+BOOL PathIsUNCEx(const WCHAR *path, const WCHAR **server);
+
 static BOOL is_drive_spec(const WCHAR *str)
 {
 	return ((str[0] >= 'A' && str[0] <= 'Z') || (str[0] >= 'a' && str[0] <= 'z')) && str[1] == ':';
@@ -127,129 +150,6 @@ static const WCHAR *get_root_end(const WCHAR *path)
 		return path[2] == '\\' ? path + 2 : path + 1;
 	else
 		return NULL;
-}
-
-HRESULT PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining)
-{
-    BOOL needs_termination;
-    SIZE_T length;
-
-    length = lstrlenW(path);
-    needs_termination = size && length && path[length - 1] != '\\';
-
-    if (length >= (needs_termination ? size - 1 : size))
-    {
-        if (endptr) *endptr = NULL;
-        if (remaining) *remaining = 0;
-        return STRSAFE_E_INSUFFICIENT_BUFFER;
-    }
-
-    if (!needs_termination)
-    {
-        if (endptr) *endptr = path + length;
-        if (remaining) *remaining = size - length;
-        return S_FALSE;
-    }
-
-    path[length++] = '\\';
-    path[length] = 0;
-
-    if (endptr) *endptr = path + length;
-    if (remaining) *remaining = size - length;
-
-    return S_OK;
-}
-
-HRESULT PathCchAddBackslash(WCHAR *path, SIZE_T size)
-{
-	return PathCchAddBackslashEx(path, size, NULL, NULL);
-}
-
-HRESULT PathCchStripPrefix(WCHAR *path, SIZE_T size)
-{
-	if (!path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
-
-	if (is_prefixed_unc(path))
-	{
-		/* \\?\UNC\a -> \\a */
-		if (size < lstrlenW(path + 8) + 3) return E_INVALIDARG;
-		lstrcpyW(path + 2, path + 8);
-		return S_OK;
-	}
-	else if (is_prefixed_disk(path))
-	{
-		/* \\?\C:\ -> C:\ */
-		if (size < lstrlenW(path + 4) + 1) return E_INVALIDARG;
-		lstrcpyW(path, path + 4);
-		return S_OK;
-	}
-	else
-		return S_FALSE;
-}
-
-HRESULT PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end)
-{
-    if (!path || !path[0] || !root_end
-        || (!wcsnicmp(path, L"\\\\?", 3) && !is_prefixed_volume(path) && !is_prefixed_unc(path)
-            && !is_prefixed_disk(path)))
-        return E_INVALIDARG;
-
-    *root_end = get_root_end(path);
-    if (*root_end)
-    {
-        (*root_end)++;
-        if (is_prefixed_unc(path))
-        {
-            get_next_segment(*root_end, root_end);
-            get_next_segment(*root_end, root_end);
-        }
-        else if (path[0] == '\\' && path[1] == '\\' && path[2] != '?')
-        {
-            /* Skip share server */
-            get_next_segment(*root_end, root_end);
-            /* If mount point is empty, don't skip over mount point */
-            if (**root_end != '\\') get_next_segment(*root_end, root_end);
-        }
-    }
-
-    return *root_end ? S_OK : E_INVALIDARG;
-}
-
-HRESULT PathCchStripToRoot(WCHAR *path, SIZE_T size)
-{
-	const WCHAR *root_end;
-	WCHAR *segment_end;
-	BOOL is_unc;
-
-	if (!path || !*path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
-
-	/* \\\\?\\UNC\\* and \\\\* have to have at least two extra segments to be striped,
-	 * e.g. \\\\?\\UNC\\a\\b\\c -> \\\\?\\UNC\\a\\b
-	 *      \\\\a\\b\\c         -> \\\\a\\b         */
-	if ((is_unc = is_prefixed_unc(path)) || (path[0] == '\\' && path[1] == '\\' && path[2] != '?'))
-	{
-		root_end = is_unc ? path + 8 : path + 3;
-		if (!get_next_segment(root_end, &root_end)) return S_FALSE;
-		if (!get_next_segment(root_end, &root_end)) return S_FALSE;
-
-		if (root_end - path >= size) return E_INVALIDARG;
-
-		segment_end = path + (root_end - path) - 1;
-		*segment_end = 0;
-		return S_OK;
-	}
-	else if (PathCchSkipRoot(path, &root_end) == S_OK)
-	{
-		if (root_end - path >= size) return E_INVALIDARG;
-
-		segment_end = path + (root_end - path);
-		if (!*segment_end) return S_FALSE;
-
-		*segment_end = 0;
-		return S_OK;
-	}
-	else
-		return E_INVALIDARG;
 }
 
 HRESULT PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out)
@@ -437,7 +337,7 @@ HRESULT PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_ou
 	return S_OK;
 }
 
-HRESULT WINAPI PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out)
+HRESULT PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out)
 {
 	SIZE_T combined_length, length2;
 	WCHAR *combined_path;
@@ -492,40 +392,118 @@ HRESULT WINAPI PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD fl
 	return hr;
 }
 
-BOOL PathCchIsRoot(const WCHAR *path)
+HRESULT PathCchAddBackslash(WCHAR *path, SIZE_T size)
 {
-	const WCHAR *root_end;
-	const WCHAR *next;
-	BOOL is_unc;
+	return PathCchAddBackslashEx(path, size, NULL, NULL);
+}
 
-	if (!path || !*path) return FALSE;
+HRESULT PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining)
+{
+    BOOL needs_termination;
+    SIZE_T length;
 
-	root_end = get_root_end(path);
-	if (!root_end) return FALSE;
+    length = lstrlenW(path);
+    needs_termination = size && length && path[length - 1] != '\\';
 
-	if ((is_unc = is_prefixed_unc(path)) || (path[0] == '\\' && path[1] == '\\' && path[2] != '?'))
-	{
-		next = root_end + 1;
-		/* No extra segments */
-		if ((is_unc && !*next) || (!is_unc && !*next)) return TRUE;
+    if (length >= (needs_termination ? size - 1 : size))
+    {
+        if (endptr) *endptr = NULL;
+        if (remaining) *remaining = 0;
+        return STRSAFE_E_INSUFFICIENT_BUFFER;
+    }
 
-		/* Has first segment with an ending backslash but no remaining characters */
-		if (get_next_segment(next, &next) && !*next) return FALSE;
-		/* Has first segment with no ending backslash */
-		else if (!*next)
-			return TRUE;
-		/* Has first segment with an ending backslash and has remaining characters*/
-		else
-		{
-			next++;
-			/* Second segment must have no backslash and no remaining characters */
-			return !get_next_segment(next, &next) && !*next;
-		}
-	}
-	else if (*root_end == '\\' && !root_end[1])
-		return TRUE;
-	else
-		return FALSE;
+    if (!needs_termination)
+    {
+        if (endptr) *endptr = path + length;
+        if (remaining) *remaining = size - length;
+        return S_FALSE;
+    }
+
+    path[length++] = '\\';
+    path[length] = 0;
+
+    if (endptr) *endptr = path + length;
+    if (remaining) *remaining = size - length;
+
+    return S_OK;
+}
+
+HRESULT PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
+{
+    const WCHAR *existing_extension, *next;
+    SIZE_T path_length, extension_length, dot_length;
+    BOOL has_dot;
+    HRESULT hr;
+
+    if (!path || !size || size > PATHCCH_MAX_CCH || !extension) return E_INVALIDARG;
+
+    next = extension;
+    while (*next)
+    {
+        if ((*next == '.' && next > extension) || *next == ' ' || *next == '\\') return E_INVALIDARG;
+        next++;
+    }
+
+    has_dot = extension[0] == '.';
+
+    hr = PathCchFindExtension(path, size, &existing_extension);
+    if (FAILED(hr)) return hr;
+    if (*existing_extension) return S_FALSE;
+
+    path_length = wcsnlen_s(path, size);
+    dot_length = has_dot ? 0 : 1;
+    extension_length = lstrlenW(extension);
+
+    if (path_length + dot_length + extension_length + 1 > size) return STRSAFE_E_INSUFFICIENT_BUFFER;
+
+    /* If extension is empty or only dot, return S_OK with path unchanged */
+    if (!extension[0] || (extension[0] == '.' && !extension[1])) return S_OK;
+
+    if (!has_dot)
+    {
+        path[path_length] = '.';
+        path_length++;
+    }
+
+    lstrcpyW(path + path_length, extension);
+    return S_OK;
+}
+
+HRESULT PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2)
+{
+    return PathCchAppendEx(path1, size, path2, PATHCCH_NONE);
+}
+
+HRESULT PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags)
+{
+    HRESULT hr;
+    WCHAR *result;
+
+    if (!path1 || !size) return E_INVALIDARG;
+
+    /* Create a temporary buffer for result because we need to keep path1 unchanged if error occurs.
+     * And PathCchCombineEx writes empty result if there is error so we can't just use path1 as output
+     * buffer for PathCchCombineEx */
+    result = (WCHAR *)HeapAlloc(GetProcessHeap(), 0, size * sizeof(WCHAR));
+    if (!result) return E_OUTOFMEMORY;
+
+    /* Avoid the single backslash behavior with PathCchCombineEx when appending */
+    if (path2 && path2[0] == '\\' && path2[1] != '\\') path2++;
+
+    hr = PathCchCombineEx(result, size, path1, path2, flags);
+    if (SUCCEEDED(hr)) memcpy(path1, result, size * sizeof(WCHAR));
+
+    HeapFree(GetProcessHeap(), 0, result);
+    return hr;
+}
+
+HRESULT PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in)
+{
+	/* Not X:\ and path > MAX_PATH - 4, return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE) */
+	if (lstrlenW(in) > MAX_PATH - 4 && !(is_drive_spec(in) && in[2] == '\\'))
+		return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE);
+
+	return PathCchCanonicalizeEx(out, size, in, PATHCCH_NONE);
 }
 
 HRESULT PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags)
@@ -565,13 +543,168 @@ HRESULT PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD fl
 	return hr;
 }
 
-HRESULT PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in)
+HRESULT PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2)
 {
-	/* Not X:\ and path > MAX_PATH - 4, return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE) */
-	if (lstrlenW(in) > MAX_PATH - 4 && !(is_drive_spec(in) && in[2] == '\\'))
-		return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE);
+	return PathCchCombineEx(out, size, path1, path2, PATHCCH_NONE);
+}
 
-	return PathCchCanonicalizeEx(out, size, in, PATHCCH_NONE);
+HRESULT PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags)
+{
+	HRESULT hr;
+	WCHAR *buffer;
+	SIZE_T length;
+
+	if (!out || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
+
+	hr = PathAllocCombine(path1, path2, flags, &buffer);
+	if (FAILED(hr))
+	{
+		out[0] = 0;
+		return hr;
+	}
+
+	length = lstrlenW(buffer);
+	if (length + 1 > size)
+	{
+		out[0] = 0;
+		LocalFree(buffer);
+		return STRSAFE_E_INSUFFICIENT_BUFFER;
+	}
+	else
+	{
+		memcpy(out, buffer, (length + 1) * sizeof(WCHAR));
+		LocalFree(buffer);
+		return S_OK;
+	}
+}
+
+HRESULT PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension)
+{
+    const WCHAR *lastpoint = NULL;
+    SIZE_T counter = 0;
+
+    if (!path || !size || size > PATHCCH_MAX_CCH)
+    {
+        *extension = NULL;
+        return E_INVALIDARG;
+    }
+
+    while (*path)
+    {
+        if (*path == '\\' || *path == ' ')
+            lastpoint = NULL;
+        else if (*path == '.')
+            lastpoint = path;
+
+        path++;
+        counter++;
+        if (counter == size || counter == PATHCCH_MAX_CCH)
+        {
+            *extension = NULL;
+            return E_INVALIDARG;
+        }
+    }
+
+    *extension = lastpoint ? lastpoint : path;
+    return S_OK;
+}
+
+BOOL PathCchIsRoot(const WCHAR *path)
+{
+	const WCHAR *root_end;
+	const WCHAR *next;
+	BOOL is_unc;
+
+	if (!path || !*path) return FALSE;
+
+	root_end = get_root_end(path);
+	if (!root_end) return FALSE;
+
+	if ((is_unc = is_prefixed_unc(path)) || (path[0] == '\\' && path[1] == '\\' && path[2] != '?'))
+	{
+		next = root_end + 1;
+		/* No extra segments */
+		if ((is_unc && !*next) || (!is_unc && !*next)) return TRUE;
+
+		/* Has first segment with an ending backslash but no remaining characters */
+		if (get_next_segment(next, &next) && !*next) return FALSE;
+		/* Has first segment with no ending backslash */
+		else if (!*next)
+			return TRUE;
+		/* Has first segment with an ending backslash and has remaining characters*/
+		else
+		{
+			next++;
+			/* Second segment must have no backslash and no remaining characters */
+			return !get_next_segment(next, &next) && !*next;
+		}
+	}
+	else if (*root_end == '\\' && !root_end[1])
+		return TRUE;
+	else
+		return FALSE;
+}
+
+HRESULT PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size)
+{
+    WCHAR *path_end;
+    SIZE_T free_size;
+
+    return PathCchRemoveBackslashEx(path, path_size, &path_end, &free_size);
+}
+
+HRESULT PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size)
+{
+    const WCHAR *root_end;
+    SIZE_T path_length;
+
+    if (!path_size || !path_end || !free_size)
+    {
+        if (path_end) *path_end = NULL;
+        if (free_size) *free_size = 0;
+        return E_INVALIDARG;
+    }
+
+    path_length = wcsnlen_s(path, path_size);
+    if (path_length == path_size && !path[path_length]) return E_INVALIDARG;
+
+    root_end = get_root_end(path);
+    if (path_length > 0 && path[path_length - 1] == '\\')
+    {
+        *path_end = path + path_length - 1;
+        *free_size = path_size - path_length + 1;
+        /* If the last character is beyond end of root */
+        if (!root_end || path + path_length - 1 > root_end)
+        {
+            path[path_length - 1] = 0;
+            return S_OK;
+        }
+        else
+            return S_FALSE;
+    }
+    else
+    {
+        *path_end = path + path_length;
+        *free_size = path_size - path_length;
+        return S_FALSE;
+    }
+}
+
+HRESULT PathCchRemoveExtension(WCHAR *path, SIZE_T size)
+{
+	const WCHAR *extension;
+	WCHAR *next;
+	HRESULT hr;
+
+	if (!path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
+
+	hr = PathCchFindExtension(path, size, &extension);
+	if (FAILED(hr)) return hr;
+
+	next = path + (extension - path);
+	while (next - path < size && *next) *next++ = 0;
+
+	return next == extension ? S_FALSE : S_OK;
 }
 
 HRESULT PathCchRemoveFileSpec(WCHAR *path, SIZE_T size)
@@ -609,32 +742,113 @@ HRESULT PathCchRemoveFileSpec(WCHAR *path, SIZE_T size)
 	return last != path + length - 1 ? S_OK : S_FALSE;
 }
 
-HRESULT PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags)
+HRESULT PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
 {
-	HRESULT hr;
-	WCHAR *buffer;
-	SIZE_T length;
+    HRESULT hr;
 
-	if (!out || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
+    hr = PathCchRemoveExtension(path, size);
+    if (FAILED(hr)) return hr;
 
-	hr = PathAllocCombine(path1, path2, flags, &buffer);
-	if (FAILED(hr))
-	{
-		out[0] = 0;
-		return hr;
-	}
+    hr = PathCchAddExtension(path, size, extension);
+    return FAILED(hr) ? hr : S_OK;
+}
 
-	length = lstrlenW(buffer);
-	if (length + 1 > size)
+HRESULT PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end)
+{
+    if (!path || !path[0] || !root_end
+        || (!wcsnicmp(path, L"\\\\?", 3) && !is_prefixed_volume(path) && !is_prefixed_unc(path)
+            && !is_prefixed_disk(path)))
+        return E_INVALIDARG;
+
+    *root_end = get_root_end(path);
+    if (*root_end)
+    {
+        (*root_end)++;
+        if (is_prefixed_unc(path))
+        {
+            get_next_segment(*root_end, root_end);
+            get_next_segment(*root_end, root_end);
+        }
+        else if (path[0] == '\\' && path[1] == '\\' && path[2] != '?')
+        {
+            /* Skip share server */
+            get_next_segment(*root_end, root_end);
+            /* If mount point is empty, don't skip over mount point */
+            if (**root_end != '\\') get_next_segment(*root_end, root_end);
+        }
+    }
+
+    return *root_end ? S_OK : E_INVALIDARG;
+}
+
+HRESULT PathCchStripPrefix(WCHAR *path, SIZE_T size)
+{
+	if (!path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
+
+	if (is_prefixed_unc(path))
 	{
-		out[0] = 0;
-		LocalFree(buffer);
-		return STRSAFE_E_INSUFFICIENT_BUFFER;
-	}
-	else
-	{
-		memcpy(out, buffer, (length + 1) * sizeof(WCHAR));
-		LocalFree(buffer);
+		/* \\?\UNC\a -> \\a */
+		if (size < lstrlenW(path + 8) + 3) return E_INVALIDARG;
+		lstrcpyW(path + 2, path + 8);
 		return S_OK;
 	}
+	else if (is_prefixed_disk(path))
+	{
+		/* \\?\C:\ -> C:\ */
+		if (size < lstrlenW(path + 4) + 1) return E_INVALIDARG;
+		lstrcpyW(path, path + 4);
+		return S_OK;
+	}
+	else
+		return S_FALSE;
+}
+
+HRESULT PathCchStripToRoot(WCHAR *path, SIZE_T size)
+{
+	const WCHAR *root_end;
+	WCHAR *segment_end;
+	BOOL is_unc;
+
+	if (!path || !*path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
+
+	/* \\\\?\\UNC\\* and \\\\* have to have at least two extra segments to be striped,
+	 * e.g. \\\\?\\UNC\\a\\b\\c -> \\\\?\\UNC\\a\\b
+	 *      \\\\a\\b\\c         -> \\\\a\\b         */
+	if ((is_unc = is_prefixed_unc(path)) || (path[0] == '\\' && path[1] == '\\' && path[2] != '?'))
+	{
+		root_end = is_unc ? path + 8 : path + 3;
+		if (!get_next_segment(root_end, &root_end)) return S_FALSE;
+		if (!get_next_segment(root_end, &root_end)) return S_FALSE;
+
+		if (root_end - path >= size) return E_INVALIDARG;
+
+		segment_end = path + (root_end - path) - 1;
+		*segment_end = 0;
+		return S_OK;
+	}
+	else if (PathCchSkipRoot(path, &root_end) == S_OK)
+	{
+		if (root_end - path >= size) return E_INVALIDARG;
+
+		segment_end = path + (root_end - path);
+		if (!*segment_end) return S_FALSE;
+
+		*segment_end = 0;
+		return S_OK;
+	}
+	else
+		return E_INVALIDARG;
+}
+
+BOOL PathIsUNCEx(const WCHAR *path, const WCHAR **server)
+{
+    const WCHAR *result = NULL;
+
+    if (is_prefixed_unc(path))
+        result = path + 8;
+    else if (path[0] == '\\' && path[1] == '\\' && path[2] != '?')
+        result = path + 2;
+
+    if (server) *server = result;
+    return !!result;
 }

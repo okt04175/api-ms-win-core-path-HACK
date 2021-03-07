@@ -27,6 +27,12 @@
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
 
+#ifdef _WIN64
+#define DLLAPI
+#else
+#define DLLAPI	__stdcall
+#endif
+
 #define PATHCCH_NONE                            0x00
 #define PATHCCH_ALLOW_LONG_PATHS                0x01
 #define PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS  0x02
@@ -39,28 +45,28 @@
 
 #define STRSAFE_E_INSUFFICIENT_BUFFER ((HRESULT)0x8007007AL)
 
-HRESULT PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out);
-HRESULT PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out);
-HRESULT PathCchAddBackslash(WCHAR *path, SIZE_T size);
-HRESULT PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining);
-HRESULT PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
-HRESULT PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2);
-HRESULT PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags);
-HRESULT PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in);
-HRESULT PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags);
-HRESULT PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2);
-HRESULT PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags);
-HRESULT PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension);
-BOOL PathCchIsRoot(const WCHAR *path);
-HRESULT PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size);
-HRESULT PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size);
-HRESULT PathCchRemoveExtension(WCHAR *path, SIZE_T size);
-HRESULT PathCchRemoveFileSpec(WCHAR *path, SIZE_T size);
-HRESULT PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
-HRESULT PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end);
-HRESULT PathCchStripPrefix(WCHAR *path, SIZE_T size);
-HRESULT PathCchStripToRoot(WCHAR *path, SIZE_T size);
-BOOL PathIsUNCEx(const WCHAR *path, const WCHAR **server);
+HRESULT DLLAPI PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out);
+HRESULT DLLAPI PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out);
+HRESULT DLLAPI PathCchAddBackslash(WCHAR *path, SIZE_T size);
+HRESULT DLLAPI PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining);
+HRESULT DLLAPI PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
+HRESULT DLLAPI PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2);
+HRESULT DLLAPI PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags);
+HRESULT DLLAPI PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in);
+HRESULT DLLAPI PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags);
+HRESULT DLLAPI PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2);
+HRESULT DLLAPI PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags);
+HRESULT DLLAPI PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension);
+BOOL DLLAPI PathCchIsRoot(const WCHAR *path);
+HRESULT DLLAPI PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size);
+HRESULT DLLAPI PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size);
+HRESULT DLLAPI PathCchRemoveExtension(WCHAR *path, SIZE_T size);
+HRESULT DLLAPI PathCchRemoveFileSpec(WCHAR *path, SIZE_T size);
+HRESULT DLLAPI PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
+HRESULT DLLAPI PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end);
+HRESULT DLLAPI PathCchStripPrefix(WCHAR *path, SIZE_T size);
+HRESULT DLLAPI PathCchStripToRoot(WCHAR *path, SIZE_T size);
+BOOL DLLAPI PathIsUNCEx(const WCHAR *path, const WCHAR **server);
 
 static BOOL is_drive_spec(const WCHAR *str)
 {
@@ -152,7 +158,7 @@ static const WCHAR *get_root_end(const WCHAR *path)
 		return NULL;
 }
 
-HRESULT PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out)
+HRESULT DLLAPI PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out)
 {
 	WCHAR *buffer, *dst;
 	const WCHAR *src;
@@ -337,7 +343,7 @@ HRESULT PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_ou
 	return S_OK;
 }
 
-HRESULT PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out)
+HRESULT DLLAPI PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out)
 {
 	SIZE_T combined_length, length2;
 	WCHAR *combined_path;
@@ -392,12 +398,12 @@ HRESULT PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WC
 	return hr;
 }
 
-HRESULT PathCchAddBackslash(WCHAR *path, SIZE_T size)
+HRESULT DLLAPI PathCchAddBackslash(WCHAR *path, SIZE_T size)
 {
 	return PathCchAddBackslashEx(path, size, NULL, NULL);
 }
 
-HRESULT PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining)
+HRESULT DLLAPI PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining)
 {
     BOOL needs_termination;
     SIZE_T length;
@@ -428,7 +434,7 @@ HRESULT PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *
     return S_OK;
 }
 
-HRESULT PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
+HRESULT DLLAPI PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
 {
     const WCHAR *existing_extension, *next;
     SIZE_T path_length, extension_length, dot_length;
@@ -469,12 +475,12 @@ HRESULT PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
     return S_OK;
 }
 
-HRESULT PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2)
+HRESULT DLLAPI PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2)
 {
     return PathCchAppendEx(path1, size, path2, PATHCCH_NONE);
 }
 
-HRESULT PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags)
+HRESULT DLLAPI PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags)
 {
     HRESULT hr;
     WCHAR *result;
@@ -497,7 +503,7 @@ HRESULT PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD fla
     return hr;
 }
 
-HRESULT PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in)
+HRESULT DLLAPI PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in)
 {
 	/* Not X:\ and path > MAX_PATH - 4, return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE) */
 	if (lstrlenW(in) > MAX_PATH - 4 && !(is_drive_spec(in) && in[2] == '\\'))
@@ -506,7 +512,7 @@ HRESULT PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in)
 	return PathCchCanonicalizeEx(out, size, in, PATHCCH_NONE);
 }
 
-HRESULT PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags)
+HRESULT DLLAPI PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags)
 {
 	WCHAR *buffer;
 	SIZE_T length;
@@ -543,12 +549,12 @@ HRESULT PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD fl
 	return hr;
 }
 
-HRESULT PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2)
+HRESULT DLLAPI PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2)
 {
 	return PathCchCombineEx(out, size, path1, path2, PATHCCH_NONE);
 }
 
-HRESULT PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags)
+HRESULT DLLAPI PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags)
 {
 	HRESULT hr;
 	WCHAR *buffer;
@@ -578,7 +584,7 @@ HRESULT PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHA
 	}
 }
 
-HRESULT PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension)
+HRESULT DLLAPI PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension)
 {
     const WCHAR *lastpoint = NULL;
     SIZE_T counter = 0;
@@ -609,7 +615,7 @@ HRESULT PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **exten
     return S_OK;
 }
 
-BOOL PathCchIsRoot(const WCHAR *path)
+BOOL DLLAPI PathCchIsRoot(const WCHAR *path)
 {
 	const WCHAR *root_end;
 	const WCHAR *next;
@@ -645,7 +651,7 @@ BOOL PathCchIsRoot(const WCHAR *path)
 		return FALSE;
 }
 
-HRESULT PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size)
+HRESULT DLLAPI PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size)
 {
     WCHAR *path_end;
     SIZE_T free_size;
@@ -653,7 +659,7 @@ HRESULT PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size)
     return PathCchRemoveBackslashEx(path, path_size, &path_end, &free_size);
 }
 
-HRESULT PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size)
+HRESULT DLLAPI PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size)
 {
     const WCHAR *root_end;
     SIZE_T path_length;
@@ -690,7 +696,7 @@ HRESULT PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end
     }
 }
 
-HRESULT PathCchRemoveExtension(WCHAR *path, SIZE_T size)
+HRESULT DLLAPI PathCchRemoveExtension(WCHAR *path, SIZE_T size)
 {
 	const WCHAR *extension;
 	WCHAR *next;
@@ -707,7 +713,7 @@ HRESULT PathCchRemoveExtension(WCHAR *path, SIZE_T size)
 	return next == extension ? S_FALSE : S_OK;
 }
 
-HRESULT PathCchRemoveFileSpec(WCHAR *path, SIZE_T size)
+HRESULT DLLAPI PathCchRemoveFileSpec(WCHAR *path, SIZE_T size)
 {
 	const WCHAR *root_end = NULL;
 	SIZE_T length;
@@ -742,7 +748,7 @@ HRESULT PathCchRemoveFileSpec(WCHAR *path, SIZE_T size)
 	return last != path + length - 1 ? S_OK : S_FALSE;
 }
 
-HRESULT PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
+HRESULT DLLAPI PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
 {
     HRESULT hr;
 
@@ -753,7 +759,7 @@ HRESULT PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
     return FAILED(hr) ? hr : S_OK;
 }
 
-HRESULT PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end)
+HRESULT DLLAPI PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end)
 {
     if (!path || !path[0] || !root_end
         || (!wcsnicmp(path, L"\\\\?", 3) && !is_prefixed_volume(path) && !is_prefixed_unc(path)
@@ -781,7 +787,7 @@ HRESULT PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end)
     return *root_end ? S_OK : E_INVALIDARG;
 }
 
-HRESULT PathCchStripPrefix(WCHAR *path, SIZE_T size)
+HRESULT DLLAPI PathCchStripPrefix(WCHAR *path, SIZE_T size)
 {
 	if (!path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
 
@@ -803,7 +809,7 @@ HRESULT PathCchStripPrefix(WCHAR *path, SIZE_T size)
 		return S_FALSE;
 }
 
-HRESULT PathCchStripToRoot(WCHAR *path, SIZE_T size)
+HRESULT DLLAPI PathCchStripToRoot(WCHAR *path, SIZE_T size)
 {
 	const WCHAR *root_end;
 	WCHAR *segment_end;
@@ -840,7 +846,7 @@ HRESULT PathCchStripToRoot(WCHAR *path, SIZE_T size)
 		return E_INVALIDARG;
 }
 
-BOOL PathIsUNCEx(const WCHAR *path, const WCHAR **server)
+BOOL DLLAPI PathIsUNCEx(const WCHAR *path, const WCHAR **server)
 {
     const WCHAR *result = NULL;
 

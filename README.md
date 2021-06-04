@@ -3,11 +3,15 @@ This is an implementation of `api-ms-win-core-path-l1-1-0.dll` based on Wine cod
 
 ## Description
 
-Blender 2.93 Alpha fails to start on Windows 7 because it uses Python 3.9 which requires `api-ms-win-core-path-l1-1-0.dll`.
-
-`blender.exe` only imports `PathCchCanonicalize`, `PathCchCanonicalizeEx` and `PathCchCombineEx`, so this should be sufficent unless there will be other changes during the 2.93 development cycle to make it incompatible with Windows 7.
+Blender 2.93 fails to start on Windows 7 because it uses Python 3.9 which requires `api-ms-win-core-path-l1-1-0.dll`.
 
 ![Blender 2.93 Alpha on Windows 7](https://raw.githubusercontent.com/nalexandru/api-ms-win-core-path-HACK/master/293_win7.png)
+
+## Blender 2.93 installation on Windows 7
+
+The official installer will refuse to install on Windows 7.
+
+You can download the Portable Zip or if you prefer the installer you can download a modified version that lowers the requirement from [modified installer download](https://1drv.ms/u/s%21AhpnXywMA4U1mQHBW0R_xWClYKBP?e=YgUSLj), or you can modify the .MSI file ([instructions on how to modify the MSI](http://david-merritt.blogspot.com/2012/08/force-blocked-software-to-install-onto.html)).
 
 ## Installation
 * Clone and build it yourself or download a precompiled release.

@@ -20,6 +20,6 @@ You can download the Portable Zip or if you prefer the installer you can downloa
 After that it should work.
 
 ## Reference
-* [Windows 7 support for blender 2.93](https://blender.community/c/rightclickselect/XZgbbc/)
+* [Windows 7 support for blender 2.93](https://blender.community/c/rightclickselect/XZgbbc)
 * [Wine source code](https://source.winehq.org/git/wine.git/blob_plain/HEAD:/dlls/kernelbase/path.c)
 * [Original project this is based on](https://github.com/kobilutil/api-ms-win-core-path-HACK)

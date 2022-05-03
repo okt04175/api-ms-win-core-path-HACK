@@ -3,7 +3,7 @@ This is an implementation of `api-ms-win-core-path-l1-1-0.dll` based on Wine cod
 
 ## Description
 
-For Blender 3.0, see https://github.com/nalexandru/BlenderCompat
+For Blender 3.0 and above, see https://github.com/nalexandru/BlenderCompat
 
 Blender 2.93 fails to start on Windows 7 because it uses Python 3.9 which requires `api-ms-win-core-path-l1-1-0.dll`.
 

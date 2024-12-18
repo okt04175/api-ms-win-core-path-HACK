@@ -26,6 +26,10 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        BUILD_CONFIGURATION: [Release, Debug]
+        BUILD_PLATFORM: [x64, x86]
 
     steps:
     - uses: actions/checkout@v4

@@ -45,7 +45,7 @@
 //#include "kernelbase.h"
 
 #include <memoryapi.h>
-//#pragma comment(lib, "memoryapi.lib")
+#pragma comment(lib, "mincore_downlevel.lib")
 
 #ifdef _WIN64
 #define DLLAPI

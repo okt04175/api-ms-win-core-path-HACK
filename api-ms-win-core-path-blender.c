@@ -124,6 +124,12 @@ BOOL DLLAPI IsBadStringPtrA(LPCSTR,UINT_PTR);
 BOOL DLLAPI IsBadStringPtrW(LPCWSTR,UINT_PTR);
 HANDLE DLLAPI CreateMemoryResourceNotification(MEMORY_RESOURCE_NOTIFICATION_TYPE);
 BOOL DLLAPI QueryMemoryResourceNotification(HANDLE,PBOOL);
+BOOL DLLAPI GetLogicalProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION,PDWORD);
+BOOL DLLAPI GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP,PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX,PDWORD);
+BOOL DLLAPI GetSystemCpuSetInformation(SYSTEM_CPU_SET_INFORMATION*,ULONG,ULONG*,HANDLE,ULONG);
+BOOL DLLAPI GetNumaNodeProcessorMaskEx(USHORT,PGROUP_AFFINITY);
+BOOL DLLAPI GetNumaProximityNodeEx(ULONG,PUSHORT);
+
 
 /***********************************************************************
  * Virtual memory functions
@@ -790,6 +796,183 @@ BOOL WINAPI DECLSPEC_HOTPATCH QueryMemoryResourceNotification( HANDLE handle, BO
     }
     SetLastError( ERROR_INVALID_PARAMETER );
     return FALSE;
+}
+
+
+/***********************************************************************
+ * NUMA functions
+ ***********************************************************************/
+
+
+/***********************************************************************
+ *             AllocateUserPhysicalPagesNuma   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH AllocateUserPhysicalPagesNuma( HANDLE process, ULONG_PTR *pages,
+                                                             ULONG_PTR *userarray, DWORD node )
+{
+    if (node) FIXME( "Ignoring preferred node %lu\n", node );
+    return AllocateUserPhysicalPages( process, pages, userarray );
+}
+
+
+/***********************************************************************
+ *             CreateFileMappingNumaW   (kernelbase.@)
+ */
+HANDLE WINAPI DECLSPEC_HOTPATCH CreateFileMappingNumaW( HANDLE file, LPSECURITY_ATTRIBUTES sa,
+                                                        DWORD protect, DWORD size_high, DWORD size_low,
+                                                        LPCWSTR name, DWORD node )
+{
+    if (node) FIXME( "Ignoring preferred node %lu\n", node );
+    return CreateFileMappingW( file, sa, protect, size_high, size_low, name );
+}
+
+
+/***********************************************************************
+ *           GetLogicalProcessorInformation   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH GetLogicalProcessorInformation( SYSTEM_LOGICAL_PROCESSOR_INFORMATION *buffer,
+                                                              DWORD *len )
+{
+    NTSTATUS status;
+
+    if (!len)
+    {
+        SetLastError( ERROR_INVALID_PARAMETER );
+        return FALSE;
+    }
+    status = NtQuerySystemInformation( SystemLogicalProcessorInformation, buffer, *len, len );
+    if (status == STATUS_INFO_LENGTH_MISMATCH) status = STATUS_BUFFER_TOO_SMALL;
+    return set_ntstatus( status );
+}
+
+
+/***********************************************************************
+ *           GetLogicalProcessorInformationEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH GetLogicalProcessorInformationEx( LOGICAL_PROCESSOR_RELATIONSHIP relationship,
+                                            SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buffer, DWORD *len )
+{
+    NTSTATUS status;
+
+    if (!len)
+    {
+        SetLastError( ERROR_INVALID_PARAMETER );
+        return FALSE;
+    }
+    status = NtQuerySystemInformationEx( SystemLogicalProcessorInformationEx, &relationship,
+                                         sizeof(relationship), buffer, *len, len );
+    if (status == STATUS_INFO_LENGTH_MISMATCH) status = STATUS_BUFFER_TOO_SMALL;
+    return set_ntstatus( status );
+}
+
+
+/***********************************************************************
+ *           GetSystemCpuSetInformation   (kernelbase.@)
+ */
+BOOL WINAPI GetSystemCpuSetInformation(SYSTEM_CPU_SET_INFORMATION *info, ULONG buffer_length, ULONG *return_length,
+                                            HANDLE process, ULONG flags)
+{
+    if (flags)
+        FIXME("Unsupported flags %#lx.\n", flags);
+
+    *return_length = 0;
+
+    return set_ntstatus( NtQuerySystemInformationEx( SystemCpuSetInformation, &process, sizeof(process), info,
+            buffer_length, return_length ));
+}
+
+
+/***********************************************************************
+ *           SetThreadSelectedCpuSets   (kernelbase.@)
+ */
+BOOL WINAPI SetThreadSelectedCpuSets(HANDLE thread, const ULONG *cpu_set_ids, ULONG count)
+{
+    FIXME( "thread %p, cpu_set_ids %p, count %lu stub.\n", thread, cpu_set_ids, count );
+
+    return TRUE;
+}
+
+
+/***********************************************************************
+ *           SetProcessDefaultCpuSets   (kernelbase.@)
+ */
+BOOL WINAPI SetProcessDefaultCpuSets(HANDLE process, const ULONG *cpu_set_ids, ULONG count)
+{
+    FIXME( "process %p, cpu_set_ids %p, count %lu stub.\n", process, cpu_set_ids, count );
+
+    return TRUE;
+}
+
+
+/**********************************************************************
+ *             GetNumaHighestNodeNumber   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH GetNumaHighestNodeNumber( ULONG *node )
+{
+    FIXME( "semi-stub: %p\n", node );
+    *node = 0;
+    return TRUE;
+}
+
+
+/**********************************************************************
+ *             GetNumaNodeProcessorMaskEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH GetNumaNodeProcessorMaskEx( USHORT node, GROUP_AFFINITY *mask )
+{
+    FIXME( "stub: %hu %p\n", node, mask );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return FALSE;
+}
+
+
+/***********************************************************************
+ *             GetNumaProximityNodeEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH GetNumaProximityNodeEx( ULONG proximity_id, USHORT *node )
+{
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return FALSE;
+}
+
+
+/***********************************************************************
+ *             MapViewOfFileExNuma   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFileExNuma( HANDLE handle, DWORD access, DWORD offset_high,
+                                                     DWORD offset_low, SIZE_T count, LPVOID addr,
+                                                     DWORD node )
+{
+    if (node) FIXME( "Ignoring preferred node %lu\n", node );
+    return MapViewOfFileEx( handle, access, offset_high, offset_low, count, addr );
+}
+
+
+/***********************************************************************
+ *             VirtualAllocExNuma   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAllocExNuma( HANDLE process, void *addr, SIZE_T size,
+                                                    DWORD type, DWORD protect, DWORD node )
+{
+    if (node) FIXME( "Ignoring preferred node %lu\n", node );
+    return VirtualAllocEx( process, addr, size, type, protect );
+}
+
+
+/***********************************************************************
+ *             QueryVirtualMemoryInformation   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH QueryVirtualMemoryInformation( HANDLE process, const void *addr,
+        WIN32_MEMORY_INFORMATION_CLASS info_class, void *info, SIZE_T size, SIZE_T *ret_size)
+{
+    switch (info_class)
+    {
+        case MemoryRegionInfo:
+            return set_ntstatus( NtQueryVirtualMemory( process, addr, MemoryRegionInformation, info, size, ret_size ));
+        default:
+            FIXME("Unsupported info class %u.\n", info_class);
+            return FALSE;
+    }
 }
 
 

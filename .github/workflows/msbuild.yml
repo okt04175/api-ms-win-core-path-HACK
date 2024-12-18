@@ -45,18 +45,21 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{matrix.BUILD_CONFIGURATION}} /p:Platform=${{matrix.BUILD_PLATFORM}} ${{env.SOLUTION_FILE_PATH}}
-          
+
+      if: ${{matrix.BUILD_PLATFORM}} == "x64"
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v4.5.0
       with:
-      if: ${{matrix.BUILD_PLATFORM}} == x64
-          name: api-ms-win-core-memory-HACK-Win64
-          # optional, default is artifact
-          # A file, directory or wildcard pattern that describes what to upload
-          path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\x64\${{matrix.BUILD_CONFIGURATION}}\
-          
-      if: ${{matrix.BUILD_PLATFORM}} == x86
-          name: api-ms-win-core-memory-HACK-Win32
-          # optional, default is artifact
-          # A file, directory or wildcard pattern that describes what to upload
-          path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\Win32\${{matrix.BUILD_CONFIGURATION}}\
+        name: api-ms-win-core-memory-HACK-Win64
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\x64\${{matrix.BUILD_CONFIGURATION}}\
+
+      if: ${{matrix.BUILD_PLATFORM}} == "x86"
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v4.5.0
+      with:
+        name: api-ms-win-core-memory-HACK-Win32
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\Win32\${{matrix.BUILD_CONFIGURATION}}\

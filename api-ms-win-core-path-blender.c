@@ -41,7 +41,7 @@
 
 //#include "kernelbase.h"
 
-//#include <memoryapi.h>
+#include <memoryapi.h>
 //#pragma comment(lib, "memoryapi.lib")
 
 #ifdef _WIN64

@@ -33,11 +33,6 @@ jobs:
           - A: Win32
             c_compiler: cl
             cpp_compiler: c
-        exclude:
-          - os: windows-latest
-            c_compiler: gcc
-          - os: windows-latest
-            c_compiler: clang
 
     steps:
     - uses: actions/checkout@v4

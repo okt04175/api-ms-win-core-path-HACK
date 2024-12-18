@@ -1,10 +1,11 @@
 /*
- * Copyright 2021 Alexandru Naiman
+ * Copyright 2024 Alan Wong(okt04175/alan2350)
  * 
  * Licensed under LGPL 2.1; see notice below
  * 
  * Original code copyright:
  * 
+ * Copyright 2021 Alexandru Naiman
  * Copyright 2018 Nikolay Sivov
  * Copyright 2018 Zhiyi Zhang
  *
@@ -24,8 +25,8 @@
  * 
  */
 
-#include <Shlwapi.h>
-#pragma comment(lib, "Shlwapi.lib")
+#include <memoryapi.h>
+#pragma comment(lib, "memoryapi.lib")
 
 #ifdef _WIN64
 #define DLLAPI
@@ -33,828 +34,762 @@
 #define DLLAPI	__stdcall
 #endif
 
-#define PATHCCH_NONE                            0x00
-#define PATHCCH_ALLOW_LONG_PATHS                0x01
-#define PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS  0x02
-#define PATHCCH_FORCE_DISABLE_LONG_NAME_PROCESS 0x04
-#define PATHCCH_DO_NOT_NORMALIZE_SEGMENTS       0x08
-#define PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH  0x10
-#define PATHCCH_ENSURE_TRAILING_SLASH           0x20
+#define FILE_MAP_COPY                           0x00000001
+#define FILE_MAP_WRITE                          0x00000002
+#define FILE_MAP_READ                           0x00000004
+#define FILE_MAP_ALL_ACCESS                     0x000f001f
+#define FILE_MAP_EXECUTE                        0x00000020
+#define FILE_MAP_RESERVE                        0x80000000
+#define FILE_MAP_TARGETS_INVALID                0x40000000
+#define FILE_MAP_LARGE_PAGES                    0x20000000
 
-#define PATHCCH_MAX_CCH 0x8000
+#define FILE_CACHE_FLAGS_DEFINED
+#define FILE_CACHE_MAX_HARD_ENABLE              0x00000001
+#define FILE_CACHE_MAX_HARD_DISABLE             0x00000002
+#define FILE_CACHE_MIN_HARD_ENABLE              0x00000004
+#define FILE_CACHE_MIN_HARD_DISABLE             0x00000008
+
+typedef enum WIN32_MEMORY_INFORMATION_CLASS
+{
+    MemoryRegionInfo
+} WIN32_MEMORY_INFORMATION_CLASS;
+
+typedef struct WIN32_MEMORY_REGION_INFORMATION
+{
+    PVOID AllocationBase;
+    ULONG AllocationProtect;
+    union
+    {
+        ULONG Flags;
+        struct
+        {
+            ULONG Private : 1;
+            ULONG MappedDataFile : 1;
+            ULONG MappedImage : 1;
+            ULONG MappedPageFile : 1;
+            ULONG MappedPhysical : 1;
+            ULONG DirectMapped : 1;
+            ULONG Reserved : 26;
+        } DUMMYSTRUCTNAME;
+    } DUMMYUNIONNAME;
+    SIZE_T RegionSize;
+    SIZE_T CommitSize;
+} WIN32_MEMORY_REGION_INFORMATION;
+
+DWORD WINAPI DiscardVirtualMemory(void *addr, SIZE_T size);
+BOOL WINAPI QueryVirtualMemoryInformation(HANDLE process,const void *addr,
+        WIN32_MEMORY_INFORMATION_CLASS info_class, void *info, SIZE_T size, SIZE_T *ret_size);
 
 #define STRSAFE_E_INSUFFICIENT_BUFFER ((HRESULT)0x8007007AL)
 
-HRESULT DLLAPI PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out);
-HRESULT DLLAPI PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out);
-HRESULT DLLAPI PathCchAddBackslash(WCHAR *path, SIZE_T size);
-HRESULT DLLAPI PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining);
-HRESULT DLLAPI PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
-HRESULT DLLAPI PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2);
-HRESULT DLLAPI PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags);
-HRESULT DLLAPI PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in);
-HRESULT DLLAPI PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags);
-HRESULT DLLAPI PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2);
-HRESULT DLLAPI PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags);
-HRESULT DLLAPI PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension);
-BOOL DLLAPI PathCchIsRoot(const WCHAR *path);
-HRESULT DLLAPI PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size);
-HRESULT DLLAPI PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size);
-HRESULT DLLAPI PathCchRemoveExtension(WCHAR *path, SIZE_T size);
-HRESULT DLLAPI PathCchRemoveFileSpec(WCHAR *path, SIZE_T size);
-HRESULT DLLAPI PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension);
-HRESULT DLLAPI PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end);
-HRESULT DLLAPI PathCchStripPrefix(WCHAR *path, SIZE_T size);
-HRESULT DLLAPI PathCchStripToRoot(WCHAR *path, SIZE_T size);
-BOOL DLLAPI PathIsUNCEx(const WCHAR *path, const WCHAR **server);
+#define CreateFileMapping CreateFileMappingW
+#define IsBadStringPtr IsBadStringPtrW
+#define OpenFileMapping OpenFileMappingW
 
-static BOOL is_drive_spec(const WCHAR *str)
+BOOL DLLAPI MapUserPhysicalPages(PVOID,ULONG_PTR,PULONG_PTR);
+LPVOID DLLAPI MapViewOfFile(HANDLE,DWORD,DWORD,DWORD,SIZE_T);
+LPVOID DLLAPI MapViewOfFile3(HANDLE,HANDLE,PVOID,ULONG64,SIZE_T,ULONG,ULONG,MEM_EXTENDED_PARAMETER*,ULONG);
+LPVOID DLLAPI MapViewOfFileEx(HANDLE,DWORD,DWORD,DWORD,SIZE_T,LPVOID);
+LPVOID DLLAPI MapViewOfFileFromApp(HANDLE,ULONG,ULONG64,SIZE_T);
+BOOL DLLAPI UnmapViewOfFile(LPCVOID);
+BOOL DLLAPI UnmapViewOfFile2(HANDLE,PVOID,ULONG);
+BOOL DLLAPI UnmapViewOfFileEx(PVOID,ULONG);
+LPVOID DLLAPI VirtualAlloc(LPVOID,SIZE_T,DWORD,DWORD);
+LPVOID DLLAPI VirtualAlloc2(HANDLE,LPVOID,SIZE_T,DWORD,DWORD,MEM_EXTENDED_PARAMETER*,ULONG);
+LPVOID DLLAPI VirtualAlloc2FromApp(HANDLE,LPVOID,SIZE_T,DWORD,DWORD,MEM_EXTENDED_PARAMETER*,ULONG);
+LPVOID DLLAPI VirtualAllocEx(HANDLE,LPVOID,SIZE_T,DWORD,DWORD);
+LPVOID DLLAPI VirtualAllocExNuma(HANDLE,void*,SIZE_T,DWORD,DWORD,DWORD);
+LPVOID DLLAPI VirtualAllocFromApp(LPVOID,SIZE_T,DWORD,DWORD);
+BOOL DLLAPI VirtualFree(LPVOID,SIZE_T,DWORD);
+BOOL DLLAPI VirtualFreeEx(HANDLE,LPVOID,SIZE_T,DWORD);
+BOOL DLLAPI VirtualLock(LPVOID,SIZE_T);
+BOOL DLLAPI VirtualProtect(LPVOID,SIZE_T,DWORD,LPDWORD);
+BOOL DLLAPI VirtualProtectEx(HANDLE,LPVOID,SIZE_T,DWORD,LPDWORD);
+SIZE_T DLLAPI VirtualQuery(LPCVOID,PMEMORY_BASIC_INFORMATION,SIZE_T);
+SIZE_T DLLAPI VirtualQueryEx(HANDLE,LPVOID,SIZE_T,DWORD,LPDWORD);
+BOOL DLLAPI VirtualUnlock(LPVOID,SIZE_T);
+BOOL DLLAPI FlushViewOfFile(LPVOID,SIZE_T);
+BOOL DLLAPI FlushInstructionCache(HANDLE,LPCVOID,SIZE_T);
+HANDLE DLLAPI CreateFileMappingW(HANDLE,LPSECURITY_ATTRIBUTES,DWORD,DWORD,DWORD,LPCWSTR);
+HANDLE DLLAPI CreateFileMappingFromApp(HANDLE,PSECURITY_ATTRIBUTES,ULONG,ULONG64,PCWSTR);
+HANDLE DLLAPI OpenFileMappingW(DWORD,BOOL,LPCWSTR);
+HANDLE DLLAPI OpenFileMappingFromApp(ULONG,BOOL,LPCWSTR);
+VOID DLLAPI GetNativeSystemInfo(LPSYSTEM_INFO);
+VOID DLLAPI GetSystemInfo(LPSYSTEM_INFO);
+UINT DLLAPI GetWriteWatch(DWORD,LPVOID,SIZE_T,LPVOID*,ULONG_PTR*,ULONG*);
+UINT DLLAPI ResetWriteWatch(LPVOID,SIZE_T*);
+BOOL DLLAPI ReadProcessMemory(HANDLE,LPCVOID,LPVOID,SIZE_T,SIZE_T*);
+BOOL DLLAPI WriteProcessMemory(HANDLE,LPVOID,LPCVOID,SIZE_T,SIZE_T*);
+BOOL DLLAPI IsBadStringPtrA(LPCSTR,UINT_PTR);
+BOOL DLLAPI IsBadStringPtrW(LPCWSTR,UINT_PTR);
+HANDLE DLLAPI CreateMemoryResourceNotification(MEMORY_RESOURCE_NOTIFICATION_TYPE);
+BOOL DLLAPI QueryMemoryResourceNotification(HANDLE,PBOOL);
+
+/***********************************************************************
+ * Virtual memory functions
+ ***********************************************************************/
+
+static const SIZE_T page_mask = 0xfff;
+#define ROUND_ADDR(addr) ((void *)((UINT_PTR)(addr) & ~page_mask))
+#define ROUND_SIZE(addr,size) (((SIZE_T)(size) + ((UINT_PTR)(addr) & page_mask) + page_mask) & ~page_mask)
+
+/***********************************************************************
+ *             DiscardVirtualMemory   (kernelbase.@)
+ */
+DWORD WINAPI DECLSPEC_HOTPATCH DiscardVirtualMemory( void *addr, SIZE_T size )
 {
-	return ((str[0] >= 'A' && str[0] <= 'Z') || (str[0] >= 'a' && str[0] <= 'z')) && str[1] == ':';
+    NTSTATUS status;
+    LPVOID ret = addr;
+
+    status = NtAllocateVirtualMemory( GetCurrentProcess(), &ret, 0, &size, MEM_RESET, PAGE_NOACCESS );
+    return RtlNtStatusToDosError( status );
 }
 
-static BOOL is_prefixed_unc(const WCHAR *string)
+
+/***********************************************************************
+ *             FlushViewOfFile   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH FlushViewOfFile( const void *base, SIZE_T size )
 {
-	return !wcsnicmp(string, L"\\\\?\\UNC\\", 8);
+    NTSTATUS status = NtFlushVirtualMemory( GetCurrentProcess(), &base, &size, 0 );
+
+    if (status == STATUS_NOT_MAPPED_DATA) status = STATUS_SUCCESS;
+    return set_ntstatus( status );
 }
 
-static BOOL is_prefixed_disk(const WCHAR *string)
+
+/****************************************************************************
+ *           FlushInstructionCache   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH FlushInstructionCache( HANDLE process, LPCVOID addr, SIZE_T size )
 {
-	return !wcsncmp(string, L"\\\\?\\", 4) && is_drive_spec(string + 4);
-}
+    CROSS_PROCESS_WORK_LIST *list;
 
-static BOOL is_prefixed_volume(const WCHAR *string)
-{
-	const WCHAR *guid;
-	INT i = 0;
-
-	if (wcsnicmp(string, L"\\\\?\\Volume", 10)) return FALSE;
-
-	guid = string + 10;
-
-	while (i <= 37)
-	{
-		switch (i)
-		{
-		case 0:
-			if (guid[i] != '{') return FALSE;
-			break;
-		case 9:
-		case 14:
-		case 19:
-		case 24:
-			if (guid[i] != '-') return FALSE;
-			break;
-		case 37:
-			if (guid[i] != '}') return FALSE;
-			break;
-		default:
-			if (!isxdigit(guid[i])) return FALSE;
-			break;
-		}
-		i++;
-	}
-
-	return TRUE;
-}
-
-/* Get the next character beyond end of the segment.
-   Return TRUE if the last segment ends with a backslash */
-static BOOL get_next_segment(const WCHAR *next, const WCHAR **next_segment)
-{
-	while (*next && *next != '\\') next++;
-	if (*next == '\\')
-	{
-		*next_segment = next + 1;
-		return TRUE;
-	}
-	else
-	{
-		*next_segment = next;
-		return FALSE;
-	}
-}
-
-/* Find the last character of the root in a path, if there is one, without any segments */
-static const WCHAR *get_root_end(const WCHAR *path)
-{
-	/* Find path root */
-	if (is_prefixed_volume(path))
-		return path[48] == '\\' ? path + 48 : path + 47;
-	else if (is_prefixed_unc(path))
-		return path + 7;
-	else if (is_prefixed_disk(path))
-		return path[6] == '\\' ? path + 6 : path + 5;
-	/* \\ */
-	else if (path[0] == '\\' && path[1] == '\\')
-		return path + 1;
-	/* \ */
-	else if (path[0] == '\\')
-		return path;
-	/* X:\ */
-	else if (is_drive_spec(path))
-		return path[2] == '\\' ? path + 2 : path + 1;
-	else
-		return NULL;
-}
-
-HRESULT DLLAPI PathAllocCanonicalize(const WCHAR *path_in, DWORD flags, WCHAR **path_out)
-{
-	WCHAR *buffer, *dst;
-	const WCHAR *src;
-	const WCHAR *root_end;
-	SIZE_T buffer_size, length;
-
-	if (!path_in || !path_out
-		|| ((flags & PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS) && (flags & PATHCCH_FORCE_DISABLE_LONG_NAME_PROCESS))
-		|| (flags & (PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS | PATHCCH_FORCE_DISABLE_LONG_NAME_PROCESS)
-			&& !(flags & PATHCCH_ALLOW_LONG_PATHS))
-		|| ((flags & PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH) && (flags & PATHCCH_ALLOW_LONG_PATHS)))
-	{
-		if (path_out) *path_out = NULL;
-		return E_INVALIDARG;
-	}
-
-	length = lstrlenW(path_in);
-	if ((length + 1 > MAX_PATH && !(flags & (PATHCCH_ALLOW_LONG_PATHS | PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH)))
-		|| (length + 1 > PATHCCH_MAX_CCH))
-	{
-		*path_out = NULL;
-		return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE);
-	}
-
-	/* PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH implies PATHCCH_DO_NOT_NORMALIZE_SEGMENTS */
-	if (flags & PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH) flags |= PATHCCH_DO_NOT_NORMALIZE_SEGMENTS;
-
-	/* path length + possible \\?\ addition + possible \ addition + NUL */
-	buffer_size = (length + 6) * sizeof(WCHAR);
-	buffer = LocalAlloc(LMEM_ZEROINIT, buffer_size);
-	if (!buffer)
-	{
-		*path_out = NULL;
-		return E_OUTOFMEMORY;
-	}
-
-	src = path_in;
-	dst = buffer;
-
-	root_end = get_root_end(path_in);
-	if (root_end) root_end = buffer + (root_end - path_in);
-
-	/* Copy path root */
-	if (root_end)
-	{
-		memcpy(dst, src, (root_end - buffer + 1) * sizeof(WCHAR));
-		src += root_end - buffer + 1;
-		if (PathCchStripPrefix(dst, length + 6) == S_OK)
-		{
-			/* Fill in \ in X:\ if the \ is missing */
-			if (is_drive_spec(dst) && dst[2] != '\\')
-			{
-				dst[2] = '\\';
-				dst[3] = 0;
-			}
-			dst = buffer + lstrlenW(buffer);
-			root_end = dst;
-		}
-		else
-			dst += root_end - buffer + 1;
-	}
-
-	while (*src)
-	{
-		if (src[0] == '.')
-		{
-			if (src[1] == '.')
-			{
-				/* Keep one . after * */
-				if (dst > buffer && dst[-1] == '*')
-				{
-					*dst++ = *src++;
-					continue;
-				}
-
-				/* Keep the .. if not surrounded by \ */
-				if ((src[2] != '\\' && src[2]) || (dst > buffer && dst[-1] != '\\'))
-				{
-					*dst++ = *src++;
-					*dst++ = *src++;
-					continue;
-				}
-
-				/* Remove the \ before .. if the \ is not part of root */
-				if (dst > buffer && dst[-1] == '\\' && (!root_end || dst - 1 > root_end))
-				{
-					*--dst = '\0';
-					/* Remove characters until a \ is encountered */
-					while (dst > buffer)
-					{
-						if (dst[-1] == '\\')
-						{
-							*--dst = 0;
-							break;
-						}
-						else
-							*--dst = 0;
-					}
-				}
-				/* Remove the extra \ after .. if the \ before .. wasn't deleted */
-				else if (src[2] == '\\')
-					src++;
-
-				src += 2;
-			}
-			else
-			{
-				/* Keep the . if not surrounded by \ */
-				if ((src[1] != '\\' && src[1]) || (dst > buffer && dst[-1] != '\\'))
-				{
-					*dst++ = *src++;
-					continue;
-				}
-
-				/* Remove the \ before . if the \ is not part of root */
-				if (dst > buffer && dst[-1] == '\\' && (!root_end || dst - 1 > root_end)) dst--;
-				/* Remove the extra \ after . if the \ before . wasn't deleted */
-				else if (src[1] == '\\')
-					src++;
-
-				src++;
-			}
-
-			/* If X:\ is not complete, then complete it */
-			if (is_drive_spec(buffer) && buffer[2] != '\\')
-			{
-				root_end = buffer + 2;
-				dst = buffer + 3;
-				buffer[2] = '\\';
-				/* If next character is \, use the \ to fill in */
-				if (src[0] == '\\') src++;
-			}
-		}
-		/* Copy over */
-		else
-			*dst++ = *src++;
-	}
-	/* End the path */
-	*dst = 0;
-
-	/* Strip multiple trailing . */
-	if (!(flags & PATHCCH_DO_NOT_NORMALIZE_SEGMENTS))
-	{
-		while (dst > buffer && dst[-1] == '.')
-		{
-			/* Keep a . after * */
-			if (dst - 1 > buffer && dst[-2] == '*')
-				break;
-			/* If . follow a : at the second character, remove the . and add a \ */
-			else if (dst - 1 > buffer && dst[-2] == ':' && dst - 2 == buffer + 1)
-				*--dst = '\\';
-			else
-				*--dst = 0;
-		}
-	}
-
-	/* If result path is empty, fill in \ */
-	if (!*buffer)
-	{
-		buffer[0] = '\\';
-		buffer[1] = 0;
-	}
-
-	/* Extend the path if needed */
-	length = lstrlenW(buffer);
-	if (((length + 1 > MAX_PATH && is_drive_spec(buffer))
-		|| (is_drive_spec(buffer) && flags & PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH))
-		&& !(flags & PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS))
-	{
-		memmove(buffer + 4, buffer, (length + 1) * sizeof(WCHAR));
-		buffer[0] = '\\';
-		buffer[1] = '\\';
-		buffer[2] = '?';
-		buffer[3] = '\\';
-	}
-
-	/* Add a trailing backslash to the path if needed */
-	if (flags & PATHCCH_ENSURE_TRAILING_SLASH)
-		PathCchAddBackslash(buffer, buffer_size);
-
-	*path_out = buffer;
-	return S_OK;
-}
-
-HRESULT DLLAPI PathAllocCombine(const WCHAR *path1, const WCHAR *path2, DWORD flags, WCHAR **out)
-{
-	SIZE_T combined_length, length2;
-	WCHAR *combined_path;
-	BOOL from_path2 = FALSE;
-	HRESULT hr;
-
-	if ((!path1 && !path2) || !out)
-	{
-		if (out) *out = NULL;
-		return E_INVALIDARG;
-	}
-
-	if (!path1 || !path2) return PathAllocCanonicalize(path1 ? path1 : path2, flags, out);
-
-	/* If path2 is fully qualified, use path2 only */
-	if (is_drive_spec(path2) || (path2[0] == '\\' && path2[1] == '\\'))
-	{
-		path1 = path2;
-		path2 = NULL;
-		from_path2 = TRUE;
-	}
-
-	length2 = path2 ? lstrlenW(path2) : 0;
-	/* path1 length + path2 length + possible backslash + NULL */
-	combined_length = lstrlenW(path1) + length2 + 2;
-
-	combined_path = HeapAlloc(GetProcessHeap(), 0, combined_length * sizeof(WCHAR));
-	if (!combined_path)
-	{
-		*out = NULL;
-		return E_OUTOFMEMORY;
-	}
-
-	lstrcpyW(combined_path, path1);
-	PathCchStripPrefix(combined_path, combined_length);
-	if (from_path2) PathCchAddBackslashEx(combined_path, combined_length, NULL, NULL);
-
-	if (path2 && path2[0])
-	{
-		if (path2[0] == '\\' && path2[1] != '\\')
-		{
-			PathCchStripToRoot(combined_path, combined_length);
-			path2++;
-		}
-
-		PathCchAddBackslashEx(combined_path, combined_length, NULL, NULL);
-		lstrcatW(combined_path, path2);
-	}
-
-	hr = PathAllocCanonicalize(combined_path, flags, out);
-	HeapFree(GetProcessHeap(), 0, combined_path);
-	return hr;
-}
-
-HRESULT DLLAPI PathCchAddBackslash(WCHAR *path, SIZE_T size)
-{
-	return PathCchAddBackslashEx(path, size, NULL, NULL);
-}
-
-HRESULT DLLAPI PathCchAddBackslashEx(WCHAR *path, SIZE_T size, WCHAR **endptr, SIZE_T *remaining)
-{
-    BOOL needs_termination;
-    SIZE_T length;
-
-    length = lstrlenW(path);
-    needs_termination = size && length && path[length - 1] != '\\';
-
-    if (length >= (needs_termination ? size - 1 : size))
+    if ((list = open_cross_process_connection( process )))
     {
-        if (endptr) *endptr = NULL;
-        if (remaining) *remaining = 0;
-        return STRSAFE_E_INSUFFICIENT_BUFFER;
+        send_cross_process_notification( list, CrossProcessFlushCache, addr, size, 0 );
+        close_cross_process_connection( list );
     }
+    return set_ntstatus( NtFlushInstructionCache( process, addr, size ));
+}
 
-    if (!needs_termination)
+
+/***********************************************************************
+ *          GetLargePageMinimum   (kernelbase.@)
+ */
+SIZE_T WINAPI GetLargePageMinimum(void)
+{
+    return 2 * 1024 * 1024;
+}
+
+
+static void fill_system_info( SYSTEM_INFO *si, const SYSTEM_BASIC_INFORMATION *basic_info,
+                              const SYSTEM_CPU_INFORMATION *cpu_info )
+{
+    si->wProcessorArchitecture      = cpu_info->ProcessorArchitecture;
+    si->wReserved                   = 0;
+    si->dwPageSize                  = basic_info->PageSize;
+    si->lpMinimumApplicationAddress = basic_info->LowestUserAddress;
+    si->lpMaximumApplicationAddress = basic_info->HighestUserAddress;
+    si->dwActiveProcessorMask       = basic_info->ActiveProcessorsAffinityMask;
+    si->dwNumberOfProcessors        = basic_info->NumberOfProcessors;
+    si->dwAllocationGranularity     = basic_info->AllocationGranularity;
+    si->wProcessorLevel             = cpu_info->ProcessorLevel;
+    si->wProcessorRevision          = cpu_info->
+
+    switch (cpu_info->ProcessorArchitecture)
     {
-        if (endptr) *endptr = path + length;
-        if (remaining) *remaining = size - length;
-        return S_FALSE;
-    }
-
-    path[length++] = '\\';
-    path[length] = 0;
-
-    if (endptr) *endptr = path + length;
-    if (remaining) *remaining = size - length;
-
-    return S_OK;
-}
-
-HRESULT DLLAPI PathCchAddExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
-{
-    const WCHAR *existing_extension, *next;
-    SIZE_T path_length, extension_length, dot_length;
-    BOOL has_dot;
-    HRESULT hr;
-
-    if (!path || !size || size > PATHCCH_MAX_CCH || !extension) return E_INVALIDARG;
-
-    next = extension;
-    while (*next)
-    {
-        if ((*next == '.' && next > extension) || *next == ' ' || *next == '\\') return E_INVALIDARG;
-        next++;
-    }
-
-    has_dot = extension[0] == '.';
-
-    hr = PathCchFindExtension(path, size, &existing_extension);
-    if (FAILED(hr)) return hr;
-    if (*existing_extension) return S_FALSE;
-
-    path_length = wcsnlen_s(path, size);
-    dot_length = has_dot ? 0 : 1;
-    extension_length = lstrlenW(extension);
-
-    if (path_length + dot_length + extension_length + 1 > size) return STRSAFE_E_INSUFFICIENT_BUFFER;
-
-    /* If extension is empty or only dot, return S_OK with path unchanged */
-    if (!extension[0] || (extension[0] == '.' && !extension[1])) return S_OK;
-
-    if (!has_dot)
-    {
-        path[path_length] = '.';
-        path_length++;
-    }
-
-    lstrcpyW(path + path_length, extension);
-    return S_OK;
-}
-
-HRESULT DLLAPI PathCchAppend(WCHAR *path1, SIZE_T size, const WCHAR *path2)
-{
-    return PathCchAppendEx(path1, size, path2, PATHCCH_NONE);
-}
-
-HRESULT DLLAPI PathCchAppendEx(WCHAR *path1, SIZE_T size, const WCHAR *path2, DWORD flags)
-{
-    HRESULT hr;
-    WCHAR *result;
-
-    if (!path1 || !size) return E_INVALIDARG;
-
-    /* Create a temporary buffer for result because we need to keep path1 unchanged if error occurs.
-     * And PathCchCombineEx writes empty result if there is error so we can't just use path1 as output
-     * buffer for PathCchCombineEx */
-    result = HeapAlloc(GetProcessHeap(), 0, size * sizeof(WCHAR));
-    if (!result) return E_OUTOFMEMORY;
-
-    /* Avoid the single backslash behavior with PathCchCombineEx when appending */
-    if (path2 && path2[0] == '\\' && path2[1] != '\\') path2++;
-
-    hr = PathCchCombineEx(result, size, path1, path2, flags);
-    if (SUCCEEDED(hr)) memcpy(path1, result, size * sizeof(WCHAR));
-
-    HeapFree(GetProcessHeap(), 0, result);
-    return hr;
-}
-
-HRESULT DLLAPI PathCchCanonicalize(WCHAR *out, SIZE_T size, const WCHAR *in)
-{
-	/* Not X:\ and path > MAX_PATH - 4, return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE) */
-	if (lstrlenW(in) > MAX_PATH - 4 && !(is_drive_spec(in) && in[2] == '\\'))
-		return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE);
-
-	return PathCchCanonicalizeEx(out, size, in, PATHCCH_NONE);
-}
-
-HRESULT DLLAPI PathCchCanonicalizeEx(WCHAR *out, SIZE_T size, const WCHAR *in, DWORD flags)
-{
-	WCHAR *buffer;
-	SIZE_T length;
-	HRESULT hr;
-
-	if (!size) return E_INVALIDARG;
-
-	hr = PathAllocCanonicalize(in, flags, &buffer);
-	if (FAILED(hr)) return hr;
-
-	length = lstrlenW(buffer);
-	if (size < length + 1)
-	{
-		/* No root and path > MAX_PATH - 4, return HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE) */
-		if (length > MAX_PATH - 4 && !(in[0] == '\\' || (is_drive_spec(in) && in[2] == '\\')))
-			hr = HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE);
-		else
-			hr = STRSAFE_E_INSUFFICIENT_BUFFER;
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		memcpy(out, buffer, (length + 1) * sizeof(WCHAR));
-
-		/* Fill a backslash at the end of X: */
-		if (is_drive_spec(out) && !out[2] && size > 3)
-		{
-			out[2] = '\\';
-			out[3] = 0;
-		}
-	}
-
-	LocalFree(buffer);
-	return hr;
-}
-
-HRESULT DLLAPI PathCchCombine(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2)
-{
-	return PathCchCombineEx(out, size, path1, path2, PATHCCH_NONE);
-}
-
-HRESULT DLLAPI PathCchCombineEx(WCHAR *out, SIZE_T size, const WCHAR *path1, const WCHAR *path2, DWORD flags)
-{
-	HRESULT hr;
-	WCHAR *buffer;
-	SIZE_T length;
-
-	if (!out || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
-
-	hr = PathAllocCombine(path1, path2, flags, &buffer);
-	if (FAILED(hr))
-	{
-		out[0] = 0;
-		return hr;
-	}
-
-	length = lstrlenW(buffer);
-	if (length + 1 > size)
-	{
-		out[0] = 0;
-		LocalFree(buffer);
-		return STRSAFE_E_INSUFFICIENT_BUFFER;
-	}
-	else
-	{
-		memcpy(out, buffer, (length + 1) * sizeof(WCHAR));
-		LocalFree(buffer);
-		return S_OK;
-	}
-}
-
-HRESULT DLLAPI PathCchFindExtension(const WCHAR *path, SIZE_T size, const WCHAR **extension)
-{
-    const WCHAR *lastpoint = NULL;
-    SIZE_T counter = 0;
-
-    if (!path || !size || size > PATHCCH_MAX_CCH)
-    {
-        *extension = NULL;
-        return E_INVALIDARG;
-    }
-
-    while (*path)
-    {
-        if (*path == '\\' || *path == ' ')
-            lastpoint = NULL;
-        else if (*path == '.')
-            lastpoint = path;
-
-        path++;
-        counter++;
-        if (counter == size || counter == PATHCCH_MAX_CCH)
+    case PROCESSOR_ARCHITECTURE_INTEL:
+        switch (cpu_info->ProcessorLevel)
         {
-            *extension = NULL;
-            return E_INVALIDARG;
+        case 3:  si->dwProcessorType = PROCESSOR_INTEL_386;     break;
+        case 4:  si->dwProcessorType = PROCESSOR_INTEL_486;     break;
+        case 5:
+        case 6:  si->dwProcessorType = PROCESSOR_INTEL_PENTIUM; break;
+        default: si->dwProcessorType = PROCESSOR_INTEL_PENTIUM; break;
+        }
+        break;
+    case PROCESSOR_ARCHITECTURE_AMD64:
+        si->dwProcessorType = PROCESSOR_AMD_X8664;
+        break;
+    case PROCESSOR_ARCHITECTURE_ARM:
+        switch (cpu_info->ProcessorLevel)
+        {
+        case 4:  si->dwProcessorType = PROCESSOR_ARM_7TDMI;     break;
+        default: si->dwProcessorType = PROCESSOR_ARM920;
+        }
+        break;
+    case PROCESSOR_ARCHITECTURE_ARM64:
+        si->dwProcessorType = 0;
+        break;
+    default:
+        FIXME( "Unknown processor architecture %x\n", cpu_info->ProcessorArchitecture );
+        si->dwProcessorType = 0;
+        break;
+    }
+}
+
+
+/***********************************************************************
+ *          GetNativeSystemInfo   (kernelbase.@)
+ */
+void WINAPI DECLSPEC_HOTPATCH GetNativeSystemInfo( SYSTEM_INFO *si )
+{
+    SYSTEM_BASIC_INFORMATION basic_info;
+    SYSTEM_CPU_INFORMATION cpu_info;
+
+    if (is_wow64)
+    {
+        USHORT current_machine, native_machine;
+
+        RtlWow64GetProcessMachines( 0, &current_machine, &native_machine );
+        if (native_machine != IMAGE_FILE_MACHINE_AMD64)
+        {
+            GetSystemInfo( si );
+            si->wProcessorArchitecture = PROCESSOR_ARCHITECTURE_AMD64;
+            return;
         }
     }
 
-    *extension = lastpoint ? lastpoint : path;
-    return S_OK;
+    if (!set_ntstatus( RtlGetNativeSystemInformation( SystemBasicInformation,
+                                                      &basic_info, sizeof(basic_info), NULL )) ||
+        !set_ntstatus( RtlGetNativeSystemInformation( SystemCpuInformation,
+                                                      &cpu_info, sizeof(cpu_info), NULL )))
+        return;
+
+    fill_system_info( si, &basic_info, &cpu_info );
 }
 
-BOOL DLLAPI PathCchIsRoot(const WCHAR *path)
+
+/***********************************************************************
+ *          GetSystemInfo   (kernelbase.@)
+ */
+void WINAPI DECLSPEC_HOTPATCH GetSystemInfo( SYSTEM_INFO *si )
 {
-	const WCHAR *root_end;
-	const WCHAR *next;
-	BOOL is_unc;
+    SYSTEM_BASIC_INFORMATION basic_info;
+    SYSTEM_CPU_INFORMATION cpu_info;
 
-	if (!path || !*path) return FALSE;
+    if (!set_ntstatus( NtQuerySystemInformation( SystemBasicInformation,
+                                                 &basic_info, sizeof(basic_info), NULL )) ||
+        !set_ntstatus( NtQuerySystemInformation( SystemCpuInformation,
+                                                 &cpu_info, sizeof(cpu_info), NULL )))
+        return;
 
-	root_end = get_root_end(path);
-	if (!root_end) return FALSE;
-
-	if ((is_unc = is_prefixed_unc(path)) || (path[0] == '\\' && path[1] == '\\' && path[2] != '?'))
-	{
-		next = root_end + 1;
-		/* No extra segments */
-		if ((is_unc && !*next) || (!is_unc && !*next)) return TRUE;
-
-		/* Has first segment with an ending backslash but no remaining characters */
-		if (get_next_segment(next, &next) && !*next) return FALSE;
-		/* Has first segment with no ending backslash */
-		else if (!*next)
-			return TRUE;
-		/* Has first segment with an ending backslash and has remaining characters*/
-		else
-		{
-			next++;
-			/* Second segment must have no backslash and no remaining characters */
-			return !get_next_segment(next, &next) && !*next;
-		}
-	}
-	else if (*root_end == '\\' && !root_end[1])
-		return TRUE;
-	else
-		return FALSE;
+    fill_system_info( si, &basic_info, &cpu_info );
 }
 
-HRESULT DLLAPI PathCchRemoveBackslash(WCHAR *path, SIZE_T path_size)
-{
-    WCHAR *path_end;
-    SIZE_T free_size;
 
-    return PathCchRemoveBackslashEx(path, path_size, &path_end, &free_size);
+/***********************************************************************
+ *          GetSystemFileCacheSize   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH GetSystemFileCacheSize( SIZE_T *mincache, SIZE_T *maxcache, DWORD *flags )
+{
+    FIXME( "stub: %p %p %p\n", mincache, maxcache, flags );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return FALSE;
 }
 
-HRESULT DLLAPI PathCchRemoveBackslashEx(WCHAR *path, SIZE_T path_size, WCHAR **path_end, SIZE_T *free_size)
-{
-    const WCHAR *root_end;
-    SIZE_T path_length;
 
-    if (!path_size || !path_end || !free_size)
+/***********************************************************************
+ *             GetWriteWatch   (kernelbase.@)
+ */
+UINT WINAPI DECLSPEC_HOTPATCH GetWriteWatch( DWORD flags, void *base, SIZE_T size, void **addresses,
+                                             ULONG_PTR *count, ULONG *granularity )
+{
+    if (!set_ntstatus( NtGetWriteWatch( GetCurrentProcess(), flags, base, size,
+                                        addresses, count, granularity )))
+        return ~0u;
+    return 0;
+}
+
+
+/***********************************************************************
+ *             MapViewOfFile   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFile( HANDLE mapping, DWORD access, DWORD offset_high,
+                                               DWORD offset_low, SIZE_T count )
+{
+    return MapViewOfFileEx( mapping, access, offset_high, offset_low, count, NULL );
+}
+
+
+/***********************************************************************
+ *             MapViewOfFileEx   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFileEx( HANDLE handle, DWORD access, DWORD offset_high,
+                                                 DWORD offset_low, SIZE_T count, LPVOID addr )
+{
+    NTSTATUS status;
+    LARGE_INTEGER offset;
+    ULONG protect;
+    BOOL exec;
+
+    offset.u.LowPart  = offset_low;
+    offset.u.HighPart = offset_high;
+
+    exec = access & FILE_MAP_EXECUTE;
+    access &= ~FILE_MAP_EXECUTE;
+
+    if (access == FILE_MAP_COPY)
+        protect = exec ? PAGE_EXECUTE_WRITECOPY : PAGE_WRITECOPY;
+    else if (access & FILE_MAP_WRITE)
+        protect = exec ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+    else if (access & FILE_MAP_READ)
+        protect = exec ? PAGE_EXECUTE_READ : PAGE_READONLY;
+    else protect = PAGE_NOACCESS;
+
+    if ((status = NtMapViewOfSection( handle, GetCurrentProcess(), &addr, 0, 0, &offset,
+                                      &count, ViewShare, 0, protect )) < 0)
     {
-        if (path_end) *path_end = NULL;
-        if (free_size) *free_size = 0;
-        return E_INVALIDARG;
+        SetLastError( RtlNtStatusToDosError(status) );
+        addr = NULL;
     }
+    return addr;
+}
 
-    path_length = wcsnlen_s(path, path_size);
-    if (path_length == path_size && !path[path_length]) return E_INVALIDARG;
 
-    root_end = get_root_end(path);
-    if (path_length > 0 && path[path_length - 1] == '\\')
+/***********************************************************************
+ *             MapViewOfFileFromApp   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFileFromApp( HANDLE handle, ULONG access, ULONG64 offset, SIZE_T size )
+{
+    return MapViewOfFile( handle, access, offset << 32, offset, size );
+}
+
+
+/***********************************************************************
+ *             MapViewOfFile3   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFile3( HANDLE handle, HANDLE process, PVOID baseaddr, ULONG64 offset,
+        SIZE_T size, ULONG alloc_type, ULONG protection, MEM_EXTENDED_PARAMETER *params, ULONG params_count )
+{
+    LARGE_INTEGER off;
+    void *addr;
+
+    if (!process) process = GetCurrentProcess();
+
+    addr = baseaddr;
+    off.QuadPart = offset;
+    if (!set_ntstatus( NtMapViewOfSectionEx( handle, process, &addr, &off, &size, alloc_type, protection,
+            params, params_count )))
     {
-        *path_end = path + path_length - 1;
-        *free_size = path_size - path_length + 1;
-        /* If the last character is beyond end of root */
-        if (!root_end || path + path_length - 1 > root_end)
+        return NULL;
+    }
+    return addr;
+}
+
+/***********************************************************************
+ *	       ReadProcessMemory   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH ReadProcessMemory( HANDLE process, const void *addr, void *buffer,
+                                                 SIZE_T size, SIZE_T *bytes_read )
+{
+    return set_ntstatus( NtReadVirtualMemory( process, addr, buffer, size, bytes_read ));
+}
+
+
+/***********************************************************************
+ *             ResetWriteWatch   (kernelbase.@)
+ */
+UINT WINAPI DECLSPEC_HOTPATCH ResetWriteWatch( void *base, SIZE_T size )
+{
+    if (!set_ntstatus( NtResetWriteWatch( GetCurrentProcess(), base, size )))
+        return ~0u;
+    return 0;
+}
+
+
+/***********************************************************************
+ *          SetSystemFileCacheSize   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH SetSystemFileCacheSize( SIZE_T mincache, SIZE_T maxcache, DWORD flags )
+{
+    FIXME( "stub: %Id %Id %ld\n", mincache, maxcache, flags );
+    SetLastError( ERROR_CALL_NOT_IMPLEMENTED );
+    return FALSE;
+}
+
+
+/***********************************************************************
+ *             UnmapViewOfFile   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH UnmapViewOfFile( const void *addr )
+{
+    if (GetVersion() & 0x80000000)
+    {
+        MEMORY_BASIC_INFORMATION info;
+        if (!VirtualQuery( addr, &info, sizeof(info) ) || info.AllocationBase != addr)
         {
-            path[path_length - 1] = 0;
-            return S_OK;
+            SetLastError( ERROR_INVALID_ADDRESS );
+            return FALSE;
         }
-        else
-            return S_FALSE;
     }
-    else
+    return set_ntstatus( NtUnmapViewOfSection( GetCurrentProcess(), (void *)addr ));
+}
+
+
+/***********************************************************************
+ *             UnmapViewOfFile2   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH UnmapViewOfFile2( HANDLE process, void *addr, ULONG flags )
+{
+    return set_ntstatus( NtUnmapViewOfSectionEx( process, addr, flags ));
+}
+
+
+/***********************************************************************
+ *             UnmapViewOfFileEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH UnmapViewOfFileEx( void *addr, ULONG flags )
+{
+    return set_ntstatus( NtUnmapViewOfSectionEx( GetCurrentProcess(), addr, flags ));
+}
+
+
+/***********************************************************************
+ *             VirtualAlloc   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAlloc( void *addr, SIZE_T size, DWORD type, DWORD protect )
+{
+    return VirtualAllocEx( GetCurrentProcess(), addr, size, type, protect );
+}
+
+
+/***********************************************************************
+ *             VirtualAllocEx   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAllocEx( HANDLE process, void *addr, SIZE_T size,
+                                                DWORD type, DWORD protect )
+{
+    LPVOID ret = addr;
+
+    if (!set_ntstatus( NtAllocateVirtualMemory( process, &ret, 0, &size, type, protect ))) return NULL;
+    return ret;
+}
+
+
+/***********************************************************************
+ *             VirtualAlloc2   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAlloc2( HANDLE process, void *addr, SIZE_T size,
+                                               DWORD type, DWORD protect,
+                                               MEM_EXTENDED_PARAMETER *parameters, ULONG count )
+{
+    LPVOID ret = addr;
+
+    if (!process) process = GetCurrentProcess();
+    if (!set_ntstatus( NtAllocateVirtualMemoryEx( process, &ret, &size, type, protect, parameters, count )))
+        return NULL;
+    return ret;
+}
+
+static BOOL is_exec_prot( DWORD protect )
+{
+    return protect == PAGE_EXECUTE || protect == PAGE_EXECUTE_READ || protect == PAGE_EXECUTE_READWRITE
+            || protect == PAGE_EXECUTE_WRITECOPY;
+}
+
+/***********************************************************************
+ *             VirtualAlloc2FromApp   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAlloc2FromApp( HANDLE process, void *addr, SIZE_T size,
+        DWORD type, DWORD protect, MEM_EXTENDED_PARAMETER *parameters, ULONG count )
+{
+    LPVOID ret = addr;
+
+    TRACE_(virtual)( "addr %p, size %p, type %#lx, protect %#lx, params %p, count %lu.\n", addr, (void *)size, type, protect,
+            parameters, count );
+
+    if (is_exec_prot( protect ))
     {
-        *path_end = path + path_length;
-        *free_size = path_size - path_length;
-        return S_FALSE;
+        SetLastError( ERROR_INVALID_PARAMETER );
+        return NULL;
     }
+
+    if (!process) process = GetCurrentProcess();
+    if (!set_ntstatus( NtAllocateVirtualMemoryEx( process, &ret, &size, type, protect, parameters, count )))
+        return NULL;
+    return ret;
 }
 
-HRESULT DLLAPI PathCchRemoveExtension(WCHAR *path, SIZE_T size)
+
+/***********************************************************************
+ *             VirtualAllocFromApp   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAllocFromApp( void *addr, SIZE_T size,
+                                                DWORD type, DWORD protect )
 {
-	const WCHAR *extension;
-	WCHAR *next;
-	HRESULT hr;
+    LPVOID ret = addr;
 
-	if (!path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
+    TRACE_(virtual)( "addr %p, size %p, type %#lx, protect %#lx.\n", addr, (void *)size, type, protect );
 
-	hr = PathCchFindExtension(path, size, &extension);
-	if (FAILED(hr)) return hr;
-
-	next = path + (extension - path);
-	while (next - path < size && *next) *next++ = 0;
-
-	return next == extension ? S_FALSE : S_OK;
-}
-
-HRESULT DLLAPI PathCchRemoveFileSpec(WCHAR *path, SIZE_T size)
-{
-	const WCHAR *root_end = NULL;
-	SIZE_T length;
-	WCHAR *last;
-
-	if (!path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
-
-	if (PathCchIsRoot(path)) return S_FALSE;
-
-	PathCchSkipRoot(path, &root_end);
-
-	/* The backslash at the end of UNC and \\* are not considered part of root in this case */
-	if (root_end && root_end > path && root_end[-1] == '\\'
-		&& (is_prefixed_unc(path) || (path[0] == '\\' && path[1] == '\\' && path[2] != '?')))
-		root_end--;
-
-	length = lstrlenW(path);
-	last = path + length - 1;
-	while (last >= path && (!root_end || last >= root_end))
-	{
-		if (last - path >= size) return E_INVALIDARG;
-
-		if (*last == '\\')
-		{
-			*last-- = 0;
-			break;
-		}
-
-		*last-- = 0;
-	}
-
-	return last != path + length - 1 ? S_OK : S_FALSE;
-}
-
-HRESULT DLLAPI PathCchRenameExtension(WCHAR *path, SIZE_T size, const WCHAR *extension)
-{
-    HRESULT hr;
-
-    hr = PathCchRemoveExtension(path, size);
-    if (FAILED(hr)) return hr;
-
-    hr = PathCchAddExtension(path, size, extension);
-    return FAILED(hr) ? hr : S_OK;
-}
-
-HRESULT DLLAPI PathCchSkipRoot(const WCHAR *path, const WCHAR **root_end)
-{
-    if (!path || !path[0] || !root_end
-        || (!wcsnicmp(path, L"\\\\?", 3) && !is_prefixed_volume(path) && !is_prefixed_unc(path)
-            && !is_prefixed_disk(path)))
-        return E_INVALIDARG;
-
-    *root_end = get_root_end(path);
-    if (*root_end)
+    if (is_exec_prot( protect ))
     {
-        (*root_end)++;
-        if (is_prefixed_unc(path))
-        {
-            get_next_segment(*root_end, root_end);
-            get_next_segment(*root_end, root_end);
-        }
-        else if (path[0] == '\\' && path[1] == '\\' && path[2] != '?')
-        {
-            /* Skip share server */
-            get_next_segment(*root_end, root_end);
-            /* If mount point is empty, don't skip over mount point */
-            if (**root_end != '\\') get_next_segment(*root_end, root_end);
-        }
+        SetLastError( ERROR_INVALID_PARAMETER );
+        return NULL;
     }
 
-    return *root_end ? S_OK : E_INVALIDARG;
+    if (!set_ntstatus( NtAllocateVirtualMemory( GetCurrentProcess(), &ret, 0, &size, type, protect ))) return NULL;
+    return ret;
 }
 
-HRESULT DLLAPI PathCchStripPrefix(WCHAR *path, SIZE_T size)
+
+/***********************************************************************
+ *             PrefetchVirtualMemory   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH PrefetchVirtualMemory( HANDLE process, ULONG_PTR count,
+                                                     WIN32_MEMORY_RANGE_ENTRY *addresses, ULONG flags )
 {
-	if (!path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
-
-	if (is_prefixed_unc(path))
-	{
-		/* \\?\UNC\a -> \\a */
-		if (size < lstrlenW(path + 8) + 3) return E_INVALIDARG;
-		lstrcpyW(path + 2, path + 8);
-		return S_OK;
-	}
-	else if (is_prefixed_disk(path))
-	{
-		/* \\?\C:\ -> C:\ */
-		if (size < lstrlenW(path + 4) + 1) return E_INVALIDARG;
-		lstrcpyW(path, path + 4);
-		return S_OK;
-	}
-	else
-		return S_FALSE;
+    return set_ntstatus( NtSetInformationVirtualMemory( process, VmPrefetchInformation,
+                                                        count, (PMEMORY_RANGE_ENTRY)addresses,
+                                                        &flags, sizeof(flags) ));
 }
 
-HRESULT DLLAPI PathCchStripToRoot(WCHAR *path, SIZE_T size)
+
+/***********************************************************************
+ *             VirtualFree   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH VirtualFree( void *addr, SIZE_T size, DWORD type )
 {
-	const WCHAR *root_end;
-	WCHAR *segment_end;
-	BOOL is_unc;
-
-	if (!path || !*path || !size || size > PATHCCH_MAX_CCH) return E_INVALIDARG;
-
-	/* \\\\?\\UNC\\* and \\\\* have to have at least two extra segments to be striped,
-	 * e.g. \\\\?\\UNC\\a\\b\\c -> \\\\?\\UNC\\a\\b
-	 *      \\\\a\\b\\c         -> \\\\a\\b         */
-	if ((is_unc = is_prefixed_unc(path)) || (path[0] == '\\' && path[1] == '\\' && path[2] != '?'))
-	{
-		root_end = is_unc ? path + 8 : path + 3;
-		if (!get_next_segment(root_end, &root_end)) return S_FALSE;
-		if (!get_next_segment(root_end, &root_end)) return S_FALSE;
-
-		if (root_end - path >= size) return E_INVALIDARG;
-
-		segment_end = path + (root_end - path) - 1;
-		*segment_end = 0;
-		return S_OK;
-	}
-	else if (PathCchSkipRoot(path, &root_end) == S_OK)
-	{
-		if (root_end - path >= size) return E_INVALIDARG;
-
-		segment_end = path + (root_end - path);
-		if (!*segment_end) return S_FALSE;
-
-		*segment_end = 0;
-		return S_OK;
-	}
-	else
-		return E_INVALIDARG;
+    return VirtualFreeEx( GetCurrentProcess(), addr, size, type );
 }
 
-BOOL DLLAPI PathIsUNCEx(const WCHAR *path, const WCHAR **server)
+
+/***********************************************************************
+ *             VirtualFreeEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH VirtualFreeEx( HANDLE process, void *addr, SIZE_T size, DWORD type )
 {
-    const WCHAR *result = NULL;
-
-    if (is_prefixed_unc(path))
-        result = path + 8;
-    else if (path[0] == '\\' && path[1] == '\\' && path[2] != '?')
-        result = path + 2;
-
-    if (server) *server = result;
-    return !!result;
+    if (type == MEM_RELEASE && size)
+    {
+        WARN( "Trying to release memory with specified size.\n" );
+        SetLastError( ERROR_INVALID_PARAMETER );
+        return FALSE;
+    }
+    return set_ntstatus( NtFreeVirtualMemory( process, &addr, &size, type ));
 }
+
+
+/***********************************************************************
+ *             VirtualLock   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH  VirtualLock( void *addr, SIZE_T size )
+{
+    return set_ntstatus( NtLockVirtualMemory( GetCurrentProcess(), &addr, &size, 1 ));
+}
+
+
+/***********************************************************************
+ *             VirtualProtect   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH VirtualProtect( void *addr, SIZE_T size, DWORD new_prot, DWORD *old_prot )
+{
+    return VirtualProtectEx( GetCurrentProcess(), addr, size, new_prot, old_prot );
+}
+
+
+/***********************************************************************
+ *             VirtualProtectEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH VirtualProtectEx( HANDLE process, void *addr, SIZE_T size,
+                                                DWORD new_prot, DWORD *old_prot )
+{
+    DWORD prot;
+
+    /* Win9x allows passing NULL as old_prot while this fails on NT */
+    if (!old_prot && (GetVersion() & 0x80000000)) old_prot = &prot;
+    return set_ntstatus( NtProtectVirtualMemory( process, &addr, &size, new_prot, old_prot ));
+}
+
+
+/***********************************************************************
+ *             VirtualQuery   (kernelbase.@)
+ */
+SIZE_T WINAPI DECLSPEC_HOTPATCH VirtualQuery( LPCVOID addr, PMEMORY_BASIC_INFORMATION info, SIZE_T len )
+{
+    return VirtualQueryEx( GetCurrentProcess(), addr, info, len );
+}
+
+
+/***********************************************************************
+ *             VirtualQueryEx   (kernelbase.@)
+ */
+SIZE_T WINAPI DECLSPEC_HOTPATCH VirtualQueryEx( HANDLE process, LPCVOID addr,
+                                                PMEMORY_BASIC_INFORMATION info, SIZE_T len )
+{
+    SIZE_T ret;
+
+    if (!set_ntstatus( NtQueryVirtualMemory( process, addr, MemoryBasicInformation, info, len, &ret )))
+        return 0;
+    return ret;
+}
+
+
+/***********************************************************************
+ *             VirtualUnlock   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH VirtualUnlock( void *addr, SIZE_T size )
+{
+    return set_ntstatus( NtUnlockVirtualMemory( GetCurrentProcess(), &addr, &size, 1 ));
+}
+
+
+/***********************************************************************
+ *             WriteProcessMemory    (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH WriteProcessMemory( HANDLE process, void *addr, const void *buffer,
+                                                  SIZE_T size, SIZE_T *bytes_written )
+{
+    CROSS_PROCESS_WORK_LIST *list = open_cross_process_connection( process );
+    DWORD old_prot, prot = PAGE_TARGETS_NO_UPDATE | PAGE_ENCLAVE_NO_CHANGE;
+    MEMORY_BASIC_INFORMATION info;
+    void *base_addr;
+    SIZE_T region_size;
+    NTSTATUS status, status2;
+
+    if (!VirtualQueryEx( process, addr, &info, sizeof(info) ))
+    {
+        close_cross_process_connection( list );
+        return FALSE;
+    }
+
+    switch (info.Protect & ~(PAGE_GUARD | PAGE_NOCACHE))
+    {
+    case PAGE_READWRITE:
+    case PAGE_WRITECOPY:
+    case PAGE_EXECUTE_READWRITE:
+    case PAGE_EXECUTE_WRITECOPY:
+        /* already writable */
+        if ((status = NtWriteVirtualMemory( process, addr, buffer, size, bytes_written ))) break;
+        send_cross_process_notification( list, CrossProcessFlushCache, addr, size, 0 );
+        NtFlushInstructionCache( process, addr, size );
+        break;
+
+    case PAGE_EXECUTE:
+    case PAGE_EXECUTE_READ:
+        /* make it writable */
+        base_addr = ROUND_ADDR( addr );
+        region_size = ROUND_SIZE( addr, size );
+        region_size = min( region_size,  (char *)info.BaseAddress + info.RegionSize - (char *)base_addr );
+        prot |= (info.Type == MEM_PRIVATE) ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_WRITECOPY;
+
+        send_cross_process_notification( list, CrossProcessPreVirtualProtect,
+                                         base_addr, region_size, 1, prot );
+        status = NtProtectVirtualMemory( process, &base_addr, &region_size, prot, &old_prot );
+        send_cross_process_notification( list, CrossProcessPostVirtualProtect,
+                                         base_addr, region_size, 2, prot, status );
+        if (status) break;
+
+        status = NtWriteVirtualMemory( process, addr, buffer, size, bytes_written );
+        if (!status)
+        {
+            send_cross_process_notification( list, CrossProcessFlushCache, addr, size, 0 );
+            NtFlushInstructionCache( process, addr, size );
+        }
+
+        prot = PAGE_TARGETS_NO_UPDATE | PAGE_ENCLAVE_NO_CHANGE | old_prot;
+        send_cross_process_notification( list, CrossProcessPreVirtualProtect,
+                                         base_addr, region_size, 1, prot );
+        status2 = NtProtectVirtualMemory( process, &base_addr, &region_size, prot, &old_prot );
+        send_cross_process_notification( list, CrossProcessPostVirtualProtect,
+                                         base_addr, region_size, 2, prot, status2 );
+        break;
+
+    default:
+        /* not writable */
+        status = STATUS_ACCESS_VIOLATION;
+        break;
+    }
+
+    close_cross_process_connection( list );
+    return set_ntstatus( status );
+}
+
+
+/* IsBadStringPtrA replacement for kernelbase, to catch exception in debug traces. */
+BOOL WINAPI IsBadStringPtrA( LPCSTR str, UINT_PTR max )
+{
+    if (!str) return TRUE;
+    __TRY
+    {
+        volatile const char *p = str;
+        while (p != str + max) if (!*p++) break;
+    }
+    __EXCEPT_PAGE_FAULT
+    {
+        return TRUE;
+    }
+    __ENDTRY
+    return FALSE;
+}
+
+
+/* IsBadStringPtrW replacement for kernelbase, to catch exception in debug traces. */
+BOOL WINAPI IsBadStringPtrW( LPCWSTR str, UINT_PTR max )
+{
+    if (!str) return TRUE;
+    __TRY
+    {
+        volatile const WCHAR *p = str;
+        while (p != str + max) if (!*p++) break;
+    }
+    __EXCEPT_PAGE_FAULT
+    {
+        return TRUE;
+    }
+    __ENDTRY
+    return FALSE;
+}
+
+
+/***********************************************************************
+ * Memory resource functions
+ ***********************************************************************/
+
+
+/***********************************************************************
+ *           CreateMemoryResourceNotification   (kernelbase.@)
+ */
+HANDLE WINAPI DECLSPEC_HOTPATCH CreateMemoryResourceNotification( MEMORY_RESOURCE_NOTIFICATION_TYPE type )
+{
+    HANDLE ret;
+    UNICODE_STRING nameW;
+    OBJECT_ATTRIBUTES attr;
+
+    switch (type)
+    {
+    case LowMemoryResourceNotification:
+        RtlInitUnicodeString( &nameW, L"\\KernelObjects\\LowMemoryCondition" );
+        break;
+    case HighMemoryResourceNotification:
+        RtlInitUnicodeString( &nameW, L"\\KernelObjects\\HighMemoryCondition" );
+        break;
+    default:
+        SetLastError( ERROR_INVALID_PARAMETER );
+        return 0;
+    }
+
+    InitializeObjectAttributes( &attr, &nameW, 0, 0, NULL );
+    if (!set_ntstatus( NtOpenEvent( &ret, EVENT_ALL_ACCESS, &attr ))) return 0;
+    return ret;
+}
+
+/***********************************************************************
+ *          QueryMemoryResourceNotification   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH QueryMemoryResourceNotification( HANDLE handle, BOOL *state )
+{
+    switch (WaitForSingleObject( handle, 0 ))
+    {
+    case WAIT_OBJECT_0:
+        *state = TRUE;
+        return TRUE;
+    case WAIT_TIMEOUT:
+        *state = FALSE;
+        return TRUE;
+    }
+    SetLastError( ERROR_INVALID_PARAMETER );
+    return FALSE;
+}
+
+

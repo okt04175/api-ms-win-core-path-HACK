@@ -24,12 +24,22 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  * 
  */
-#include <winbase.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <sys/types.h>
+
+#include "ntstatus.h"
+#define WIN32_NO_STATUS
+#include "windef.h"
+#include "winbase.h"
+#include "winnls.h"
+#include "winternl.h"
+#include "winerror.h"
+#include "ddk/wdm.h"
+
+#include "kernelbase.h"
 
 //#include <memoryapi.h>
 //#pragma comment(lib, "memoryapi.lib")

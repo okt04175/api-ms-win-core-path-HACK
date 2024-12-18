@@ -39,7 +39,7 @@
 #include "winerror.h"
 //#include "ddk/wdm.h"
 
-#include "kernelbase.h"
+//#include "kernelbase.h"
 
 //#include <memoryapi.h>
 //#pragma comment(lib, "memoryapi.lib")

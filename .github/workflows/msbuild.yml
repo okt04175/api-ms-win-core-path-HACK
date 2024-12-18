@@ -51,6 +51,7 @@ jobs:
       uses: actions/upload-artifact@v4.5.0
       with:
         overwrite: true
+        if-no-files-found: ignore
         name: api-ms-win-core-memory-HACK-Win64-${{matrix.BUILD_CONFIGURATION}}
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
@@ -61,6 +62,7 @@ jobs:
       uses: actions/upload-artifact@v4.5.0
       with:
         overwrite: true
+        if-no-files-found: ignore
         name: api-ms-win-core-memory-HACK-Win32-${{matrix.BUILD_CONFIGURATION}}
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload

@@ -48,8 +48,17 @@ jobs:
           
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v4.5.0
-      with:
-        name: api-ms-win-core-memory-HACK
-        # optional, default is artifact
-        # A file, directory or wildcard pattern that describes what to upload
-        path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\${{matrix.BUILD_PLATFORM}}\${{matrix.BUILD_CONFIGURATION}}\
+      
+      if: ${{matrix.BUILD_PLATFORM}} == x64
+        with:
+          name: api-ms-win-core-memory-HACK-x64
+          # optional, default is artifact
+          # A file, directory or wildcard pattern that describes what to upload
+          path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\x64\${{matrix.BUILD_CONFIGURATION}}\
+          
+      if: ${{matrix.BUILD_PLATFORM}} == x86
+        with:
+          name: api-ms-win-core-memory-HACK-Win32
+          # optional, default is artifact
+          # A file, directory or wildcard pattern that describes what to upload
+          path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\Win32\${{matrix.BUILD_CONFIGURATION}}\

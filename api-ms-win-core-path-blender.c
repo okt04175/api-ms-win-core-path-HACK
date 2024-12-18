@@ -32,7 +32,7 @@
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
-#include "windef.h"
+#include "windows.h"
 #include "winbase.h"
 #include "winnls.h"
 #include "winternl.h"

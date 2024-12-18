@@ -27,7 +27,7 @@ jobs:
   build:
     runs-on: windows-latest
     strategy:
-      matrix:
+      env:
         BUILD_CONFIGURATION: [Release, Debug]
         BUILD_PLATFORM: [x64, x86]
 

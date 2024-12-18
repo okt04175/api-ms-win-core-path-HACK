@@ -30,6 +30,9 @@
 #include <limits.h>
 #include <sys/types.h>
 
+#include <apiset.h>
+#include <apisetcconv.h>
+
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
 #include "windows.h"

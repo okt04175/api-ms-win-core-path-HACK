@@ -52,4 +52,4 @@ jobs:
         name: api-ms-win-core-memory-HACK
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\${{matrix.BUILD_PLATFORM}}\Release\
+        path: D:\a\api-ms-win-core-path-HACK\api-ms-win-core-path-HACK\build\${{matrix.BUILD_PLATFORM}}\${{matrix.BUILD_CONFIGURATION}}\

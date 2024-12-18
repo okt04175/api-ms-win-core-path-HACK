@@ -7,9 +7,9 @@ name: MSBuild
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "Memory-l1-1-5" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "Memory-l1-1-5" ]
 
 env:
   # Path to the solution file relative to the root of the project.

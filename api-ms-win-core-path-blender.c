@@ -37,7 +37,7 @@
 #include "winnls.h"
 #include "winternl.h"
 #include "winerror.h"
-#include "ddk/wdm.h"
+//#include "ddk/wdm.h"
 
 #include "kernelbase.h"
 
